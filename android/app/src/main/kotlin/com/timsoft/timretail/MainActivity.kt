@@ -1,4 +1,4 @@
-package com.example.project
+package com.timsoft.timretail
 
 import io.flutter.embedding.android.FlutterActivity
 
