@@ -4,10 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
-  final String baseUrl = 'http://192.168.1.103:3000/auth';
-
+  final String baseUrl = 'http://127.0.0.1:3000/auth';
   Future<Map<String, dynamic>> register({
     required String nom,
+    required String prenom,
     required String email,
     required String motDePasse,
   }) async {
@@ -18,6 +18,7 @@ class AuthService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'nom': nom,
+        'prenom': prenom,
         'email': email,
         'motDePasse': motDePasse,
       }),
@@ -68,29 +69,48 @@ class AuthService {
     return prefs.getString('token');
   }
 
+  Future<Map<String, dynamic>> googleLoginWithToken(String idToken) async {
+    final url = Uri.parse('$baseUrl/google');
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'token': idToken}),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && data['token'] != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', data['token']);
+    }
+
+    return {'status': response.statusCode, 'body': data};
+  }
+
   Future<Map<String, dynamic>> googleLogin() async {
     try {
       final GoogleSignIn _googleSignIn = GoogleSignIn(
         scopes: ['email', 'profile'],
-        // 🔥 This is CRITICAL: Use your Web Client ID here!
-        serverClientId:
-            '755445236888-t23s8ruotiugblkiu3iju1pmgqs8gbci.apps.googleusercontent.com',
+        clientId:
+            '755445236888-d3g1dmodl74krp8j59c507i2r2gi11gq.apps.googleusercontent.com', // ✅ Web Client ID
       );
 
+      await _googleSignIn.signOut(); // 👈 Forces account re-selection
       final GoogleSignInAccount? account = await _googleSignIn.signIn();
 
       if (account == null) {
         return {
           'status': 400,
-          'body': {'message': 'Annulé par l\'utilisateur'}
+          'body': {'message': 'Connexion annulée par l\'utilisateur'}
         };
       }
 
       final GoogleSignInAuthentication auth = await account.authentication;
-
-      print("📱 Google ID Token: ${auth.idToken}");
-
+      // ✅ Print token to copy and test in Postman
+      print("📥 Google ID Token: ${auth.idToken}");
       final url = Uri.parse('$baseUrl/google');
+
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -111,5 +131,14 @@ class AuthService {
         'body': {'message': 'Erreur Google Sign-In', 'error': e.toString()},
       };
     }
+  }
+
+  Future<void> googleSignOut() async {
+    final GoogleSignIn _googleSignIn = GoogleSignIn(
+      scopes: ['email', 'profile'],
+      clientId:
+          '755445236888-d3g1dmodl74krp8j59c507i2r2gi11gq.apps.googleusercontent.com',
+    );
+    await _googleSignIn.signOut();
   }
 }

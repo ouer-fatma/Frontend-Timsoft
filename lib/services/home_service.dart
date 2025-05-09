@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ArticleService {
-  final String baseUrl = 'http://192.168.1.103:3000/articles';
+  final String baseUrl = 'http://127.0.0.1:3000/articles';
 
   Future<List<Map<String, dynamic>>> fetchArticles() async {
     final prefs = await SharedPreferences.getInstance();
@@ -55,14 +58,15 @@ class ArticleService {
     final token = prefs.getString('token');
 
     final response = await http.post(
-      Uri.parse(baseUrl),
+      Uri.parse('http://127.0.0.1:3000/articles'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode({
-        'GA_ARTICLE': code,
+        'GA_ARTICLE': code, // ✅ Both required by backend
         'GA_CODEARTICLE': code,
+        'GA_CODEBARRE': '',
         'GA_LIBELLE': libelle,
         'GA_PVHT': pvht,
         'GA_PVTTC': pvttc,
