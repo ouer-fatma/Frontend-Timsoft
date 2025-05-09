@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:project/screens/admin/admin_dashboard_screen.dart';
 import 'package:project/screens/auth/Create-account_screen.dart';
 import 'package:project/services/auth_service.dart';
-import 'package:project/screens/Home/Home_screen.dart';
+import 'package:project/screens/User/Home_screen.dart';
 import 'package:project/screens/admin/admin_home_screen.dart'; // ✅ IMPORT THIS
 
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -42,11 +43,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 30),
                 TextField(
                   controller: emailController,
+                  style: const TextStyle(
+                      color: Colors.black), // 👈 Texte saisi en noir
                   decoration: InputDecoration(
-                    hintText: "Email",
-                    prefixIcon: const Icon(Icons.email),
+                    hintText: "E-mail",
+                    hintStyle:
+                        const TextStyle(color: Colors.grey), // 👈 Hint en gris
+                    prefixIcon: const Icon(Icons.email, color: Colors.grey),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.3),
+                    fillColor: const Color(0xFFF1F3F5),
                     contentPadding: const EdgeInsets.symmetric(
                         vertical: 18, horizontal: 20),
                     enabledBorder: OutlineInputBorder(
@@ -63,13 +68,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: passwordController,
                   obscureText: obscurePassword,
+                  style: const TextStyle(
+                      color: Colors.black), // ✅ texte saisi en noir
                   decoration: InputDecoration(
-                    hintText: "Password",
-                    prefixIcon: const Icon(Icons.lock),
+                    hintText: "Mot de passe",
+                    hintStyle:
+                        const TextStyle(color: Colors.grey), // ✅ hint en gris
+                    prefixIcon: const Icon(Icons.lock,
+                        color: Colors.grey), // ✅ icône grise
                     suffixIcon: IconButton(
-                      icon: Icon(obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility),
+                      icon: Icon(
+                        obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: Colors.grey,
+                      ),
                       onPressed: () {
                         setState(() {
                           obscurePassword = !obscurePassword;
@@ -77,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.3),
+                    fillColor: const Color(0xFFF1F3F5),
                     contentPadding: const EdgeInsets.symmetric(
                         vertical: 18, horizontal: 20),
                     enabledBorder: OutlineInputBorder(
@@ -95,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {},
-                    child: const Text("Forgot password?",
+                    child: const Text("Tu as oublié ton mot de passe ?",
                         style: TextStyle(color: Colors.grey)),
                   ),
                 ),
@@ -128,18 +141,24 @@ class _LoginScreenState extends State<LoginScreen> {
                           Map<String, dynamic> decoded =
                               JwtDecoder.decode(token);
                           String role = decoded['role'];
+                          String nom = decoded['nom']; // 👈 récupère le nom ici
 
                           if (role == 'admin') {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) => const AdminHomeScreen()),
+                                  builder: (_) => const AdminDashboardScreen()),
                             );
                           } else if (role == 'client') {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                  builder: (_) => const HomeScreen()),
+                                builder: (_) => HomeScreen(
+                                  userNom: nom,
+                                  userEmail: decoded['email'],
+                                  userRole: role,
+                                ),
+                              ),
                             );
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -161,12 +180,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text("Log In",
+                    child: const Text("SE CONNECTER",
                         style: TextStyle(color: Colors.white, fontSize: 18)),
                   ),
                 ),
                 const SizedBox(height: 30),
-                const Text("or login with",
+                const Text("ou se connecter avec",
                     style: TextStyle(color: Colors.grey, fontSize: 14)),
                 const SizedBox(height: 16),
                 Row(
@@ -182,6 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             Map<String, dynamic> decoded =
                                 JwtDecoder.decode(token);
                             String role = decoded['role'];
+                            String nom = decoded['nom'];
 
                             if (role == 'admin') {
                               Navigator.pushReplacement(
@@ -193,7 +213,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => const HomeScreen()),
+                                  builder: (_) => HomeScreen(
+                                    userNom: nom,
+                                    userEmail: decoded['email'],
+                                    userRole: role,
+                                  ),
+                                ),
                               );
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -221,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("Don't have an account? "),
+                    const Text("Tu n'as pas de compte ? "),
                     TextButton(
                       onPressed: () {
                         Navigator.push(
@@ -232,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         );
                       },
                       child: const Text(
-                        "Sign up",
+                        "Inscris-toi",
                         style: TextStyle(
                             color: Color(0xFF3B5BDB),
                             fontWeight: FontWeight.bold),

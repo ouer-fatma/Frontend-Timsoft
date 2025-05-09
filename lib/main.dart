@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:project/screens/auth/Create-account_screen.dart';
 import 'package:project/screens/auth/Login_screen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:animated_text_kit/animated_text_kit.dart';
 
 void main() => runApp(const MyApp());
 
@@ -21,97 +24,238 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  List<dynamic> articles = [];
+  bool isLoading = true;
+
+  final List<String> placeholderImages = [
+    'assets/articles/Blouse.jpg',
+    'assets/articles/chemise.jpg',
+    'assets/articles/Pull.jpg',
+    'assets/articles/Sweat.jpg',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchArticles();
+  }
+
+  Future<void> fetchArticles() async {
+    setState(() => isLoading = true);
+    try {
+      final response =
+          await http.get(Uri.parse('http://localhost:3000/articles'));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          articles = data;
+          isLoading = false;
+        });
+      } else {
+        print("Erreur serveur: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Erreur fetch: $e");
+    }
+    setState(() => isLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.white,
-              Color(0xFFE3F0FF),
-            ],
-          ),
-        ),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Logo
-                Image.asset(
-                  'assets/logo.png',
-                  height: 160,
-                ),
-                const SizedBox(height: 30),
-
-                const Text(
-                  'Your partner for a reinvented Retail experience',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Color(0xFF495057),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 160,
+            pinned: true,
+            elevation: 0,
+            backgroundColor:
+                Colors.white.withOpacity(0.9), // Initial semi-transparent
+            stretch: true,
+            flexibleSpace: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final isCollapsed =
+                    constraints.biggest.height <= kToolbarHeight + 10;
+                return Container(
+                  decoration: BoxDecoration(
+                    color: isCollapsed
+                        ? Colors.white.withOpacity(0.9)
+                        : Colors.transparent,
+                    border: isCollapsed
+                        ? const Border(
+                            bottom: BorderSide(color: Colors.black12))
+                        : null,
                   ),
-                ),
-                const SizedBox(height: 40),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) =>
-                                const CreateAccountScreen()),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B5BDB),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      top: MediaQuery.of(context).padding.top + 10,
+                      left: 16,
+                      right: 16,
+                      bottom: 10,
                     ),
-                    child: const Text(
-                      "Let's get started",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Image.asset(
+                          'assets/logo.png',
+                          height: isCollapsed ? 150 : 200, // shrink on scroll
+                        ),
+                        Row(
+                          children: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => const LoginScreen()));
+                              },
+                              child: const Text(
+                                'Se connecter',
+                                style: TextStyle(color: Colors.black),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton(
+                              onPressed: () {
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            const CreateAccountScreen()));
+                              },
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.black),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 8),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text(
+                                "S'inscrire",
+                                style: TextStyle(color: Colors.black),
+                              ),
+                            ),
+                          ],
+                        )
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-
-                // Back to login as a single text button
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const LoginScreen()),
-                    );
-                  },
-                  child: const Text(
-                    'I already have an account',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF495057),
-                    ),
-                  ),
-                ),
-              ],
+                );
+              },
             ),
           ),
-        ),
+
+          // Optional tagline
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: AnimatedTextKit(
+                  isRepeatingAnimation: false,
+                  totalRepeatCount: 1,
+                  animatedTexts: [
+                    TyperAnimatedText(
+                      'Votre partenaire pour une expérience de mode réinventée',
+                      textStyle: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xFF495057),
+                      ),
+                      speed: const Duration(milliseconds: 50),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Grid of articles
+          isLoading
+              ? const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              : SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  sliver: SliverGrid(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final article = articles[index];
+                        final image =
+                            placeholderImages[index % placeholderImages.length];
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 6,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ClipRRect(
+                                borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(16)),
+                                child: Image.asset(
+                                  image,
+                                  height: 150,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(
+                                  article['GA_LIBELLE'] ?? 'Sans libellé',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                child: Text(
+                                  "€${article['GA_PVTTC'] ?? '0'}",
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      childCount: articles.length,
+                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisExtent: 240,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                    ),
+                  ),
+                ),
+        ],
       ),
     );
   }

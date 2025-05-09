@@ -12,10 +12,14 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   flutter_svg: ^2.0.9
-  google_sign_in: ^6.1.5
+  image_picker: ^0.8.7+4
+  google_sign_in: ^6.3.0
   http: ^0.13.6
   shared_preferences: ^2.2.2
   jwt_decoder: ^2.0.1
+  url_launcher: ^6.2.5
+  animated_text_kit: ^4.2.2
+
 
 dev_dependencies:
   flutter_test:
@@ -41,3 +45,7 @@ flutter:
     - assets/logo.png
     - assets/google_icon.png
     - assets/facebook_icon.png
+    - assets/articles/Blouse.jpg
+    - assets/articles/chemise.jpg
+    - assets/articles/Pull.jpg
+    - assets/articles/Sweat.jpg

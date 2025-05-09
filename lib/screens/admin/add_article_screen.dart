@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:project/services/Home_service.dart';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:image_picker/image_picker.dart';
 
 class AddArticleScreen extends StatefulWidget {
   const AddArticleScreen({super.key});
@@ -28,49 +31,52 @@ class _AddArticleScreenState extends State<AddArticleScreen> {
         padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: codeController,
-                decoration: const InputDecoration(labelText: 'Code article'),
-                validator: (value) =>
-                    value!.isEmpty ? 'Champ requis' : null,
-              ),
-              TextFormField(
-                controller: libelleController,
-                decoration: const InputDecoration(labelText: 'Libellé'),
-                validator: (value) =>
-                    value!.isEmpty ? 'Champ requis' : null,
-              ),
-              TextFormField(
-                controller: pvhtController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Prix HT'),
-              ),
-              TextFormField(
-                controller: pvttcController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Prix TTC'),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () async {
-                  if (_formKey.currentState!.validate()) {
-                    await _articleService.createArticle(
-                      code: codeController.text,
-                      libelle: libelleController.text,
-                      pvht: double.tryParse(pvhtController.text) ?? 0.0,
-                      pvttc: double.tryParse(pvttcController.text) ?? 0.0,
-                    );
-                    Navigator.pop(context, true);
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3B5BDB),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  controller: codeController,
+                  decoration: const InputDecoration(labelText: 'Code article'),
+                  validator: (value) => value!.isEmpty ? 'Champ requis' : null,
                 ),
-                child: const Text("Enregistrer", style: TextStyle(color: Colors.white)),
-              ),
-            ],
+                TextFormField(
+                  controller: libelleController,
+                  decoration: const InputDecoration(labelText: 'Libellé'),
+                  validator: (value) => value!.isEmpty ? 'Champ requis' : null,
+                ),
+                TextFormField(
+                  controller: pvhtController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Prix HT'),
+                ),
+                TextFormField(
+                  controller: pvttcController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Prix TTC'),
+                ),
+                const SizedBox(height: 20),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (_formKey.currentState!.validate()) {
+                      await _articleService.createArticle(
+                        code: codeController.text,
+                        libelle: libelleController.text,
+                        pvht: double.tryParse(pvhtController.text) ?? 0.0,
+                        pvttc: double.tryParse(pvttcController.text) ?? 0.0,
+                      );
+                      Navigator.pop(context, true);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3B5BDB),
+                  ),
+                  child: const Text("Enregistrer",
+                      style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
           ),
         ),
       ),

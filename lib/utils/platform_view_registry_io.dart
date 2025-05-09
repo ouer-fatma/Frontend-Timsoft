@@ -1,0 +1,1 @@
+final platformViewRegistry = null;

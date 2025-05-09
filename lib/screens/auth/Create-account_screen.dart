@@ -11,6 +11,7 @@ class CreateAccountScreen extends StatefulWidget {
 
 class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final TextEditingController nomController = TextEditingController();
+  final TextEditingController prenomController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
@@ -67,12 +68,35 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 ),
                 const SizedBox(height: 16),
 
+                TextField(
+                  controller: prenomController,
+                  decoration: InputDecoration(
+                    hintText: "Prénom",
+                    hintStyle: const TextStyle(color: Colors.grey),
+                    prefixIcon:
+                        const Icon(Icons.person_outline, color: Colors.grey),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.3),
+                    contentPadding: const EdgeInsets.symmetric(
+                        vertical: 18, horizontal: 20),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 // Email
                 TextField(
                   controller: emailController,
                   style: const TextStyle(color: Colors.grey),
                   decoration: InputDecoration(
-                    hintText: "Email",
+                    hintText: "E-mail",
                     hintStyle: const TextStyle(color: Colors.grey),
                     prefixIcon: const Icon(Icons.email, color: Colors.grey),
                     filled: true,
@@ -97,7 +121,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   obscureText: obscurePassword,
                   style: const TextStyle(color: Colors.grey),
                   decoration: InputDecoration(
-                    hintText: "Password",
+                    hintText: "Mot de passe",
                     hintStyle: const TextStyle(color: Colors.grey),
                     prefixIcon: const Icon(Icons.lock, color: Colors.grey),
                     suffixIcon: IconButton(
@@ -135,7 +159,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   obscureText: obscureConfirmPassword,
                   style: const TextStyle(color: Colors.grey),
                   decoration: InputDecoration(
-                    hintText: "Confirm Password",
+                    hintText: "Confirmer le mot de passe",
                     hintStyle: const TextStyle(color: Colors.grey),
                     prefixIcon: const Icon(Icons.lock, color: Colors.grey),
                     suffixIcon: IconButton(
@@ -175,11 +199,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   child: ElevatedButton(
                     onPressed: () async {
                       final nom = nomController.text.trim();
+                      final prenom = prenomController.text.trim();
                       final email = emailController.text.trim();
                       final motDePasse = passwordController.text.trim();
                       final confirm = confirmPasswordController.text.trim();
 
                       if (nom.isEmpty ||
+                          prenom.isEmpty ||
                           email.isEmpty ||
                           motDePasse.isEmpty ||
                           confirm.isEmpty) {
@@ -206,7 +232,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                                'Le mot de passe doit contenir au moins 6 caractères, une lettre, un chiffre et un caractère spécial.'),
+                                'Minimum 6 caractères incluant lettre, chiffre et symbole.'),
                           ),
                         );
                         return;
@@ -224,6 +250,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       final auth = AuthService();
                       final result = await auth.register(
                         nom: nom,
+                        prenom: prenom,
                         email: email,
                         motDePasse: motDePasse,
                       );
@@ -247,7 +274,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text("Sign Up",
+                    child: const Text("S'inscrire",
                         style: TextStyle(color: Colors.white, fontSize: 18)),
                   ),
                 ),
@@ -257,7 +284,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text(
-                      "Already have an account? ",
+                      "vous avez déjà un compte ?",
                       style: TextStyle(fontSize: 14, color: Color(0xFF495057)),
                     ),
                     TextButton(
@@ -269,7 +296,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         );
                       },
                       child: const Text(
-                        "Sign in",
+                        "Se connecter",
                         style: TextStyle(
                           fontSize: 14,
                           color: Color(0xFF3B5BDB),

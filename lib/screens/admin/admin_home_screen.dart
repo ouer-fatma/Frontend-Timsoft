@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:project/services/Home_service.dart';
 import 'add_article_screen.dart';
 import 'edit_article_screen.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -70,23 +71,88 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
+  void _showArticleDialog({Map<String, dynamic>? article}) {
+    final codeController =
+        TextEditingController(text: article?['GA_CODEARTICLE']);
+    final libelleController =
+        TextEditingController(text: article?['GA_LIBELLE']);
+    final pvhtController =
+        TextEditingController(text: article?['GA_PVHT']?.toString());
+    final pvttcController =
+        TextEditingController(text: article?['GA_PVTTC']?.toString());
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title:
+            Text(article == null ? "Ajouter un article" : "Modifier l'article"),
+        content: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextField(
+                controller: codeController,
+                decoration: const InputDecoration(labelText: "Code Article"),
+              ),
+              TextField(
+                controller: libelleController,
+                decoration: const InputDecoration(labelText: "Libellé"),
+              ),
+              TextField(
+                controller: pvhtController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: "Prix HT"),
+              ),
+              TextField(
+                controller: pvttcController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: "Prix TTC"),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Annuler"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                if (article == null) {
+                  await _articleService.createArticle(
+                    code: codeController.text,
+                    libelle: libelleController.text,
+                    pvht: double.tryParse(pvhtController.text) ?? 0.0,
+                    pvttc: double.tryParse(pvttcController.text) ?? 0.0,
+                  );
+                } else {
+                  await _articleService.updateArticle(
+                    id: article['GA_ARTICLE'],
+                    libelle: libelleController.text,
+                    pvht: double.tryParse(pvhtController.text) ?? 0.0,
+                    pvttc: double.tryParse(pvttcController.text) ?? 0.0,
+                    tenueStock: 'O',
+                  );
+                }
+                Navigator.pop(ctx);
+                fetchArticles();
+              } catch (e) {
+                print("Erreur : $e");
+              }
+            },
+            child: Text(article == null ? "Ajouter" : "Enregistrer"),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Admin - Articles"),
-        backgroundColor: const Color(0xFF3B5BDB),
-      ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final added = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddArticleScreen()),
-          );
-          if (added == true) {
-            fetchArticles();
-          }
-        },
+        onPressed: () => _showArticleDialog(),
         backgroundColor: const Color(0xFF3B5BDB),
         child: const Icon(Icons.add),
       ),
@@ -118,7 +184,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     itemBuilder: (context, index) {
                       final article = articles[index];
                       return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -132,31 +199,25 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                               Text("Prix HT: ${article['GA_PVHT'] ?? '-'}"),
                               Text("Prix TTC: ${article['GA_PVTTC'] ?? '-'}"),
                               if (article['REMISE'] != null)
-                                Text("Remise: ${article['REMISE']['MLR_REMISE']}%"),
+                                Text(
+                                    "Remise: ${article['REMISE']['MLR_REMISE']}%"),
                             ],
                           ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.edit, color: Colors.orange),
-                                onPressed: () async {
-                                  final updated = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          EditArticleScreen(article: article),
-                                    ),
-                                  );
-                                  if (updated == true) {
-                                    fetchArticles();
-                                  }
-                                },
+                                icon: const Icon(Icons.edit,
+                                    color: Colors.orange),
+                                onPressed: () =>
+                                    _showArticleDialog(article: article),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
                                 onPressed: () {
-                                  _showDeleteConfirmation(article['GA_ARTICLE']);
+                                  _showDeleteConfirmation(
+                                      article['GA_ARTICLE']);
                                 },
                               ),
                             ],
