@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:project/screens/User/article_detail_screen.dart';
+import 'package:project/screens/admin/admin_home_screen.dart';
 import 'package:project/screens/auth/Create-account_screen.dart';
 import 'package:project/screens/auth/Login_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:animated_text_kit/animated_text_kit.dart';
+import 'package:project/screens/auth/splash_screen.dart';
+import 'package:project/services/storage_service.dart';
 
 void main() => runApp(const MyApp());
 
@@ -19,7 +23,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         fontFamily: 'Inter',
       ),
-      home: const WelcomeScreen(),
+      home: const SplashScreen(),
     );
   }
 }
@@ -45,7 +49,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   void initState() {
     super.initState();
+    _redirectIfAuthenticated();
     fetchArticles();
+  }
+
+  Future<void> _redirectIfAuthenticated() async {
+    final token = await StorageService.getToken();
+    if (token != null && mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
+      );
+    }
   }
 
   Future<void> fetchArticles() async {
@@ -192,55 +207,66 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         final article = articles[index];
                         final image =
                             placeholderImages[index % placeholderImages.length];
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 6,
-                                offset: Offset(0, 3),
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    ArticleDetailScreen(article: article),
                               ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ClipRRect(
-                                borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(16)),
-                                child: Image.asset(
-                                  image,
-                                  height: 150,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
+                            );
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 6,
+                                  offset: Offset(0, 3),
                                 ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Text(
-                                  article['GA_LIBELLE'] ?? 'Sans libellé',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 8),
-                                child: Text(
-                                  "€${article['GA_PVTTC'] ?? '0'}",
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey,
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(16)),
+                                  child: Image.asset(
+                                    image,
+                                    height: 150,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
                                   ),
                                 ),
-                              ),
-                            ],
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Text(
+                                    article['GA_LIBELLE'] ?? 'Sans libellé',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 8),
+                                  child: Text(
+                                    "€${article['GA_PVTTC'] ?? '0'}",
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       },

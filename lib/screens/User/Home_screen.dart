@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:project/screens/User/article_detail_screen.dart';
+import 'package:project/screens/User/panier_screen.dart';
 import 'package:project/screens/User/user_profile_screen.dart';
 import 'package:project/services/Home_service.dart'; // Assure-toi d'importer correctement
 import 'dart:convert';
 import 'package:project/screens/auth/Login_screen.dart'; // Adjust the path as needed
 import 'package:http/http.dart' as http;
 import 'package:animated_text_kit/animated_text_kit.dart';
+import 'package:project/services/storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 
@@ -28,6 +30,9 @@ class _HomeScreenState extends State<HomeScreen> {
   String? userName;
   String? userEmail;
   String? userRole;
+  String? codeTiers;
+
+  final TextEditingController _searchController = TextEditingController();
 
   List<dynamic> articles = [];
   bool isLoading = true;
@@ -50,15 +55,28 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> loadUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token =
+        await StorageService.getToken(); // ✅ Utilise ta méthode unifiée
 
-    if (token != null) {
+    if (token == null) {
+      print("❌ Token introuvable dans StorageService !");
+      return;
+    }
+
+    try {
       final decoded = JwtDecoder.decode(token);
+      print("✅ JWT DECODED: $decoded");
+
+      if (!mounted) return; // ✅ pour éviter setState sur widget détruit
+
       setState(() {
         userName = decoded['nom'] ?? decoded['email'] ?? 'Utilisateur';
         userEmail = decoded['email'];
+        userRole = decoded['role'];
+        codeTiers = decoded['codeTiers'];
       });
+    } catch (e) {
+      print("❌ Erreur de décodage du JWT: $e");
     }
   }
 
@@ -91,6 +109,27 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       print("Erreur fetch: $e");
+    }
+    setState(() => isLoading = false);
+  }
+
+  Future<void> searchArticles(String query) async {
+    setState(() => isLoading = true);
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:3000/articles/search/$query'),
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          articles = data;
+          isLoading = false;
+        });
+      } else {
+        print("Erreur serveur (search): ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Erreur recherche: $e");
     }
     setState(() => isLoading = false);
   }
@@ -211,18 +250,41 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
 
                         // 👇 Logout
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const LoginScreen()),
-                            );
-                          },
-                          child: const Text(
-                            'Se déconnecter',
-                            style: TextStyle(color: Colors.black),
-                          ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.shopping_cart),
+                              onPressed: () {
+                                if (codeTiers != null) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => PanierScreen(
+                                          codeTiers: codeTiers!), // ✅ CORRECT
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content:
+                                            Text("CodeTiers non disponible.")),
+                                  );
+                                }
+                              },
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                await StorageService.clearToken();
+                                if (!mounted) return;
+                                Navigator.of(context).pushNamedAndRemoveUntil(
+                                    '/', (route) => false);
+                              },
+                              child: const Text(
+                                'Se déconnecter',
+                                style: TextStyle(color: Colors.black),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -272,6 +334,30 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  if (value.isEmpty) {
+                    fetchArticles(); // Show all
+                  } else {
+                    searchArticles(value);
+                  }
+                },
+                decoration: InputDecoration(
+                  hintText: "Rechercher un article...",
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                ),
+              ),
+            ),
+          ),
+
           // Article Grid
           isLoading
               ? const SliverFillRemaining(
@@ -313,11 +399,19 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ClipRRect(
                                   borderRadius: const BorderRadius.vertical(
                                       top: Radius.circular(16)),
-                                  child: Image.asset(
-                                    image,
+                                  child: Image.network(
+                                    article['GA_IMAGE_URL'] ?? '',
                                     height: 150,
                                     width: double.infinity,
                                     fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Image.asset(
+                                      placeholderImages[
+                                          index % placeholderImages.length],
+                                      height: 150,
+                                      fit: BoxFit.cover,
+                                    ),
                                   ),
                                 ),
                                 Padding(

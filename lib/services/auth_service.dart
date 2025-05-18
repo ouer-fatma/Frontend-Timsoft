@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:project/services/storage_service.dart';
 
 class AuthService {
   final String baseUrl = 'http://127.0.0.1:3000/auth';
@@ -48,9 +49,7 @@ class AuthService {
     final responseData = jsonDecode(response.body);
 
     if (response.statusCode == 200 && responseData['token'] != null) {
-      // Save token locally
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('token', responseData['token']);
+      await StorageService.saveToken(responseData['token']);
     }
 
     return {
