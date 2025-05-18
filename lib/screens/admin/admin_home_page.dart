@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:project/services/storage_service.dart';
 
 class AdminHomePage extends StatelessWidget {
   const AdminHomePage({super.key});
@@ -30,8 +31,11 @@ class AdminHomePage extends StatelessWidget {
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: () async {
-                  // Optional: await AuthService().logout();
-                  Navigator.popUntil(context, (route) => route.isFirst);
+                  await StorageService.clearToken(); // ❌ Supprime le token
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    '/', // redirige vers l'accueil/splash
+                    (route) => false,
+                  );
                 },
                 icon: const Icon(Icons.logout),
                 label: const Text("Se déconnecter"),

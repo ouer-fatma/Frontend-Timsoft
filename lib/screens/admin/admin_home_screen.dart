@@ -1,8 +1,8 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:project/services/Home_service.dart';
-import 'add_article_screen.dart';
-import 'edit_article_screen.dart';
-import 'package:image_picker/image_picker.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -16,6 +16,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   bool isLoading = true;
   final TextEditingController _searchController = TextEditingController();
   final ArticleService _articleService = ArticleService();
+  PlatformFile? _selectedImage;
 
   @override
   void initState() {
@@ -72,6 +73,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   void _showArticleDialog({Map<String, dynamic>? article}) {
+    if (article == null) _selectedImage = null;
     final codeController =
         TextEditingController(text: article?['GA_CODEARTICLE']);
     final libelleController =
@@ -108,6 +110,37 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: "Prix TTC"),
               ),
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final result = await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: ['jpg', 'jpeg', 'png'],
+                    withData: true,
+                  );
+
+                  if (result != null && result.files.single.bytes != null) {
+                    print(
+                        "🟢 Image sélectionnée : ${result.files.single.name}");
+                    print(
+                        "📦 Bytes size: ${result.files.single.bytes!.length}");
+                    setState(() {
+                      _selectedImage = result.files.single;
+                    });
+                  } else {
+                    print("❌ Aucun fichier sélectionné ou bytes null");
+                  }
+                },
+                icon: const Icon(Icons.image),
+                label: const Text("Choisir une image"),
+              ),
+              if (_selectedImage != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: kIsWeb
+                      ? Image.memory(_selectedImage!.bytes!, height: 100)
+                      : Image.file(File(_selectedImage!.path!), height: 100),
+                ),
             ],
           ),
         ),
@@ -125,6 +158,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     libelle: libelleController.text,
                     pvht: double.tryParse(pvhtController.text) ?? 0.0,
                     pvttc: double.tryParse(pvttcController.text) ?? 0.0,
+                    image: _selectedImage,
                   );
                 } else {
                   await _articleService.updateArticle(
@@ -133,10 +167,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     pvht: double.tryParse(pvhtController.text) ?? 0.0,
                     pvttc: double.tryParse(pvttcController.text) ?? 0.0,
                     tenueStock: 'O',
+                    image: _selectedImage,
                   );
                 }
-                Navigator.pop(ctx);
-                fetchArticles();
+
+                await fetchArticles(); // ✅ Refresh first
+                if (context.mounted) Navigator.pop(ctx); // ✅ Then close dialog
+                _selectedImage = null;
               } catch (e) {
                 print("Erreur : $e");
               }
@@ -183,6 +220,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     itemCount: articles.length,
                     itemBuilder: (context, index) {
                       final article = articles[index];
+                      final imageUrl = article['GA_IMAGE_URL'];
+
                       return Card(
                         margin: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 8),
@@ -191,6 +230,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                         ),
                         elevation: 3,
                         child: ListTile(
+                          leading: imageUrl != null
+                              ? Image.network(imageUrl,
+                                  width: 50, height: 50, fit: BoxFit.cover)
+                              : const Icon(Icons.image_not_supported),
                           title: Text(article['GA_LIBELLE'] ?? 'Sans libellé'),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

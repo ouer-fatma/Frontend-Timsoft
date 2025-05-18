@@ -6,6 +6,7 @@ import 'package:project/screens/User/Home_screen.dart';
 import 'package:project/screens/admin/admin_home_screen.dart'; // ✅ IMPORT THIS
 
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:project/services/storage_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -135,36 +136,44 @@ class _LoginScreenState extends State<LoginScreen> {
                         motDePasse: password,
                       );
 
-                      if (result['status'] == 200) {
-                        final token = await auth.getToken();
-                        if (token != null) {
-                          Map<String, dynamic> decoded =
-                              JwtDecoder.decode(token);
-                          String role = decoded['role'];
-                          String nom = decoded['nom']; // 👈 récupère le nom ici
+                      if (result['status'] == 200 &&
+                          result['body']['token'] != null) {
+                        final token = result['body']['token'];
 
-                          if (role == 'admin') {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const AdminDashboardScreen()),
-                            );
-                          } else if (role == 'client') {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => HomeScreen(
-                                  userNom: nom,
-                                  userEmail: decoded['email'],
-                                  userRole: role,
-                                ),
+                        // 🟢 ÉTAPE ESSENTIELLE : SAUVEGARDER LE TOKEN
+                        await StorageService.clearToken();
+                        await StorageService.saveToken(token);
+
+                        // 🟡 Test immédiat
+                        final testToken = await StorageService.getToken();
+                        print(
+                            "🔎 Vérification immédiate après enregistrement : $testToken");
+
+                        final decoded = JwtDecoder.decode(token);
+                        String role = decoded['role'];
+                        String nom = decoded['nom'];
+
+                        if (role == 'admin') {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const AdminDashboardScreen()),
+                          );
+                        } else if (role == 'client') {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => HomeScreen(
+                                userNom: nom,
+                                userEmail: decoded['email'],
+                                userRole: role,
                               ),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("Rôle inconnu : $role")),
-                            );
-                          }
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Rôle inconnu : $role")),
+                          );
                         }
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -207,7 +216,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => const AdminHomeScreen()),
+                                    builder: (_) =>
+                                        const AdminDashboardScreen()),
                               );
                             } else if (role == 'client') {
                               Navigator.pushReplacement(
