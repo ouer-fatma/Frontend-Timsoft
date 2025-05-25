@@ -6,6 +6,7 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 class PanierService {
   final String baseUrl = 'http://localhost:3000/panier';
 
+  // 🔄 Initialiser un panier
   Future<void> initPanier(String codeTiers) async {
     final response = await http.post(
       Uri.parse('$baseUrl/init'),
@@ -18,8 +19,10 @@ class PanierService {
     }
   }
 
+  // 📥 Récupérer le contenu du panier
   Future<List<Map<String, dynamic>>> getPanier() async {
     print("📡 [PanierService] getPanier() called");
+
     final token = await StorageService.getToken();
     if (token == null) throw Exception("Token introuvable");
 
@@ -43,6 +46,7 @@ class PanierService {
     }
   }
 
+  // ➕ Ajouter un article
   Future<void> ajouterAuPanier({
     required String codeTiers,
     required String codeArticle,
@@ -60,6 +64,22 @@ class PanierService {
 
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception("Erreur ajout panier: ${response.body}");
+    }
+  }
+
+  // ❌ Supprimer un article
+  Future<void> supprimerDuPanier(String codeTiers, String codeArticle) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/retirer'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'codeTiers': codeTiers,
+        'codeArticle': codeArticle,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception("Erreur suppression article: ${response.body}");
     }
   }
 }

@@ -16,34 +16,60 @@ class _PanierScreenState extends State<PanierScreen> {
   bool hasFetched = false;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     if (!hasFetched) {
       hasFetched = true;
-      _fetchPanier();
+      _fetchPanier(); // 👈 on déplace ici
     }
   }
 
-  Future<void> _fetchPanier() async {
-    print("📦 [_fetchPanier] called");
-    setState(() => isLoading = true);
-    try {
-      final panierData = await PanierService().getPanier();
-      print("📥 [_fetchPanier] panier reçu : $panierData");
+ Future<void> _fetchPanier() async {
+  print("📦 [_fetchPanier] called");
+  setState(() => isLoading = true);
 
+  final stopwatch = Stopwatch()..start(); // mesurer le temps
+
+  try {
+    final panierData = await _panierService.getPanier();
+    final elapsed = stopwatch.elapsedMilliseconds;
+
+    // ✅ petit délai si c’est trop rapide pour donner un effet "chargement"
+    if (elapsed < 300) {
+      await Future.delayed(Duration(milliseconds: 300 - elapsed));
+    }
+
+    setState(() {
+      lignes = panierData;
+      isLoading = false;
+    });
+  } catch (e) {
+    setState(() => isLoading = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Erreur: $e")),
+    );
+  }
+}
+
+  Future<void> _supprimerArticle(String codeArticle) async {
+    try {
+      await _panierService.supprimerDuPanier(widget.codeTiers, codeArticle);
       setState(() {
-        lignes = panierData;
-        isLoading = false;
+        lignes.removeWhere((ligne) => ligne['GL_ARTICLE'] == codeArticle);
       });
-    } catch (e) {
-      setState(() => isLoading = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur: $e")),
+        const SnackBar(content: Text("Article supprimé du panier.")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erreur suppression : $e")),
       );
     }
   }
 
-  double get total => lignes.fold(0, (sum, l) => sum + (l['TotalLigne'] ?? 0));
+  double get total =>
+      lignes.fold(0.0, (sum, l) => sum + (l['TotalLigne'] ?? 0));
 
   @override
   Widget build(BuildContext context) {
@@ -69,9 +95,22 @@ class _PanierScreenState extends State<PanierScreen> {
                             subtitle: Text(
                               "Quantité: ${ligne['GL_QTEFACT']} | Prix: €${ligne['GA_PVTTC']}",
                             ),
-                            trailing: Text("Total: €${ligne['TotalLigne']}",
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold)),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  "€${ligne['TotalLigne']}",
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete,
+                                      color: Colors.red),
+                                  onPressed: () =>
+                                      _supprimerArticle(ligne['GL_ARTICLE']),
+                                ),
+                              ],
+                            ),
                           );
                         },
                       ),
