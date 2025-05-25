@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "755445236888",
+    "project_id": "timretail-457509",
+    "storage_bucket": "timretail-457509.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:755445236888:android:411753da6a5964ccf97ced",
+        "android_client_info": {
+          "package_name": "com.timsoft.timretail"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "755445236888-44pjvgopqt8uvkpkfnt9ir78vph8hpb1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.timsoft.timretail",
+            "certificate_hash": "eb0477c0f4b649a8ba5ed134be3a6d9b2e982fe8"
+          }
+        },
+        {
+          "client_id": "755445236888-t23s8ruotiugblkiu3iju1pmgqs8gbci.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBfAOTbIbd0yq2i1w2zkQzYTasiF3gUx-Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "755445236888-t23s8ruotiugblkiu3iju1pmgqs8gbci.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
