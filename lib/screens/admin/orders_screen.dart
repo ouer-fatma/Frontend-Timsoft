@@ -13,6 +13,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   final OrderService _orderService = OrderService();
   List<Map<String, dynamic>> orders = [];
   bool isLoading = true;
+  String? errorMessage;
 
   @override
   void initState() {
@@ -22,12 +23,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   Future<void> fetchOrders() async {
     if (!mounted) return;
-    setState(() => isLoading = true);
+    setState(() {
+      isLoading = true;
+      errorMessage = null; // ✅ Réinitialise l'erreur à chaque appel
+    });
+
     try {
-      orders = await _orderService.fetchOrders();
+      orders = await _orderService.fetchAllOrders();
     } catch (e) {
       print("Erreur récupération commandes: $e");
+      errorMessage = e.toString(); // ✅ Stocke l'erreur
     }
+
     if (!mounted) return;
     setState(() => isLoading = false);
   }
@@ -121,68 +128,80 @@ class _OrdersScreenState extends State<OrdersScreen> {
     return Scaffold(
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: orders.length,
-              itemBuilder: (context, index) {
-                final order = orders[index];
-                return Card(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 3,
-                  child: ListTile(
-                    title: Text(
-                        "Commande: ${order['GP_NATUREPIECEG']}/${order['GP_SOUCHE']}/${order['GP_NUMERO']}/${order['GP_INDICEG']}"),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Client: ${order['GP_TIERS']}"),
-                        Text("Date: ${order['GP_DATECREATION']}"),
-                        Text("Total TTC: ${order['GP_TOTALTTC']} €"),
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.picture_as_pdf,
-                              color: Colors.deepPurple),
-                          onPressed: () async {
-                            final String nature =
-                                order['GP_NATUREPIECEG'].toString();
-                            final String souche = order['GP_SOUCHE'].toString();
-                            final int numero =
-                                int.parse(order['GP_NUMERO'].toString());
-                            final String indice =
-                                order['GP_INDICEG'].toString();
-
-                            final String url =
-                                'http://127.0.0.1:3000/api/invoice/download/$nature/$souche/$numero/$indice';
-
-                            if (await canLaunchUrl(Uri.parse(url))) {
-                              await launchUrl(Uri.parse(url),
-                                  mode: LaunchMode.externalApplication);
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content:
-                                        Text("Impossible d'ouvrir le PDF.")),
-                              );
-                            }
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _confirmDelete(order),
-                        ),
-                      ],
+          : errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      "Erreur: $errorMessage",
+                      style: const TextStyle(color: Colors.red, fontSize: 16),
+                      textAlign: TextAlign.center,
                     ),
                   ),
-                );
-              },
-            ),
+                )
+              : ListView.builder(
+                  itemCount: orders.length,
+                  itemBuilder: (context, index) {
+                    final order = orders[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 3,
+                      child: ListTile(
+                        title: Text(
+                            "Commande: ${order['GP_NATUREPIECEG']}/${order['GP_SOUCHE']}/${order['GP_NUMERO']}/${order['GP_INDICEG']}"),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("Client: ${order['GP_TIERS']}"),
+                            Text("Date: ${order['GP_DATECREATION']}"),
+                            Text("Total TTC: ${order['GP_TOTALTTC']} €"),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.picture_as_pdf,
+                                  color: Colors.deepPurple),
+                              onPressed: () async {
+                                final String nature =
+                                    order['GP_NATUREPIECEG'].toString();
+                                final String souche =
+                                    order['GP_SOUCHE'].toString();
+                                final int numero =
+                                    int.parse(order['GP_NUMERO'].toString());
+                                final String indice =
+                                    order['GP_INDICEG'].toString();
+
+                                final String url =
+                                    'http://127.0.0.1:3000/api/invoice/download/$nature/$souche/$numero/$indice';
+
+                                if (await canLaunchUrl(Uri.parse(url))) {
+                                  await launchUrl(Uri.parse(url),
+                                      mode: LaunchMode.externalApplication);
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            "Impossible d'ouvrir le PDF.")),
+                                  );
+                                }
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _confirmDelete(order),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

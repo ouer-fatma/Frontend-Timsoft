@@ -139,6 +139,9 @@ class ArticleService {
       ..fields['GA_PVTTC'] = pvttc.toString()
       ..fields['GA_TENUESTOCK'] = tenueStock;
 
+        request.headers['Content-Type'] = 'multipart/form-data';
+
+
     if (image != null) {
       if (kIsWeb) {
         if (image.bytes == null) throw Exception("Image invalide.");

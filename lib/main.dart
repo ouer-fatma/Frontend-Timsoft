@@ -8,6 +8,8 @@ import 'dart:convert';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:project/screens/auth/splash_screen.dart';
 import 'package:project/services/storage_service.dart';
+import 'package:project/widgets/login_side_panel.dart';
+import 'package:project/widgets/register_side_panel.dart';
 
 void main() => runApp(const MyApp());
 
@@ -83,6 +85,63 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     setState(() => isLoading = false);
   }
 
+  void _openLoginModal(BuildContext context) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "Login",
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return const SizedBox.shrink();
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return Stack(
+          children: [
+            // Overlay background
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Opacity(
+                opacity: 0.4,
+                child: Container(color: Colors.black),
+              ),
+            ),
+            // Right-side login panel
+            Align(
+              alignment: Alignment.centerRight,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(1, 0),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: const LoginSidePanel(), // 👈 crée ce widget
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showSidePanel(Widget child) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) {
+        return Align(
+          alignment: Alignment.centerRight,
+          child: FractionallySizedBox(
+            widthFactor: 0.8, // 80% de l'écran
+            child: Material(
+              elevation: 12,
+              color: Colors.white,
+              child: child,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -127,10 +186,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           children: [
                             TextButton(
                               onPressed: () {
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) => const LoginScreen()));
+                                _openLoginModal(
+                                    context); // 👈 utilise cette fonction
                               },
                               child: const Text(
                                 'Se connecter',
@@ -140,11 +197,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             const SizedBox(width: 8),
                             OutlinedButton(
                               onPressed: () {
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) =>
-                                            const CreateAccountScreen()));
+                                showDialog(
+                                  context: context,
+                                  builder: (_) => const Dialog(
+                                    backgroundColor: Colors.transparent,
+                                    insetPadding: EdgeInsets.zero,
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child:
+                                          RegisterSidePanel(), // 👈 même widget utilisé ailleurs
+                                    ),
+                                  ),
+                                );
                               },
                               style: OutlinedButton.styleFrom(
                                 side: const BorderSide(color: Colors.black),
@@ -201,7 +265,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 )
               : SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  sliver: SliverGrid(
+                  sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
                         final article = articles[index];
@@ -218,6 +282,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             );
                           },
                           child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 10),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
@@ -229,55 +295,64 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 ),
                               ],
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            child: Row(
                               children: [
+                                // 🖼️ IMAGE
                                 ClipRRect(
-                                  borderRadius: const BorderRadius.vertical(
-                                      top: Radius.circular(16)),
-                                  child: Image.asset(
-                                    image,
-                                    height: 150,
-                                    width: double.infinity,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    article['GA_IMAGE_URL'] ?? '',
+                                    height: 140,
+                                    width: 120,
                                     fit: BoxFit.cover,
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Text(
-                                    article['GA_LIBELLE'] ?? 'Sans libellé',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(horizontal: 8),
-                                  child: Text(
-                                    "€${article['GA_PVTTC'] ?? '0'}",
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey,
+                                    errorBuilder: (_, __, ___) => Image.asset(
+                                      image,
+                                      height: 140,
+                                      width: 120,
+                                      fit: BoxFit.cover,
                                     ),
                                   ),
                                 ),
+                                const SizedBox(width: 16),
+
+                                // 📄 INFOS
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        article['GA_LIBELLE'] ?? 'Sans libellé',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        "Code: ${article['GA_CODEARTICLE'] ?? ''}",
+                                        style:
+                                            const TextStyle(color: Colors.grey),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        "€${article['GA_PVTTC'] ?? '0'}",
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
                               ],
                             ),
                           ),
                         );
                       },
                       childCount: articles.length,
-                    ),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisExtent: 240,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
                     ),
                   ),
                 ),

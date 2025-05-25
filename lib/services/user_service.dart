@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:project/services/storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UserService {
   final String baseUrl = 'http://127.0.0.1:3000/users';
 
   Future<List<Map<String, dynamic>>> getAllUsers() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = await StorageService.getToken();
 
     final response = await http.get(
       Uri.parse(baseUrl),
@@ -30,8 +30,7 @@ class UserService {
     required String motDePasse,
     required String role,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = await StorageService.getToken();
 
     final response = await http.post(
       Uri.parse(baseUrl),
@@ -59,8 +58,7 @@ class UserService {
     required String email,
     required String role,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = await StorageService.getToken();
 
     final response = await http.put(
       Uri.parse('$baseUrl/$id'),
@@ -81,8 +79,7 @@ class UserService {
   }
 
   Future<void> deleteUser(int id) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = await StorageService.getToken();
 
     final response = await http.delete(
       Uri.parse('$baseUrl/$id'),
