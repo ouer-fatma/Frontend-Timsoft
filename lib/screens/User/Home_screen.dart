@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:project/screens/User/article_detail_screen.dart';
 import 'package:project/screens/User/panier_screen.dart';
 import 'package:project/screens/User/user_profile_screen.dart';
+import 'package:project/screens/User/familles_screen.dart';
+import 'package:project/screens/User/user_orders_screen.dart';
 import 'package:project/services/Home_service.dart';
 import 'dart:convert';
 import 'package:project/screens/auth/Login_screen.dart';
@@ -10,7 +12,6 @@ import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:project/services/storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:project/screens/User/familles_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userNom;
@@ -169,13 +170,16 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.shopping_cart),
-              title: const Text("Commandes"),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(Icons.favorite),
-              title: const Text("Favoris"),
-              onTap: () {},
+              title: const Text("Mes Commandes"),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => UserOrdersScreen(codeTiers: codeTiers ?? ''),
+                  ),
+                );
+              },
             ),
             ListTile(
               leading: const Icon(Icons.settings),
@@ -309,68 +313,73 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           isLoading
               ? const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
-              : SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  sliver: SliverGrid(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final article = articles[index];
-                        final image = placeholderImages[index % placeholderImages.length];
-                        return GestureDetector(
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ArticleDetailScreen(article: article),
-                            ),
+              : SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final article = articles[index];
+                      final image = placeholderImages[index % placeholderImages.length];
+                      return GestureDetector(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ArticleDetailScreen(article: article),
                           ),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                                  child: Image.network(
-                                    article['GA_IMAGE_URL'] ?? '',
-                                    height: 150,
-                                    width: double.infinity,
+                        ),
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 10),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))],
+                          ),
+                          child: Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  article['GA_IMAGE_URL'] ?? '',
+                                  height: 140,
+                                  width: 120,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Image.asset(
+                                    image,
+                                    height: 140,
+                                    width: 120,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => Image.asset(image, height: 150, fit: BoxFit.cover),
                                   ),
                                 ),
-                                Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Text(
-                                    article['GA_LIBELLE'] ?? 'Sans libellé',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      article['GA_LIBELLE'] ?? 'Sans libellé',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      "Code: ${article['GA_CODEARTICLE'] ?? ''}",
+                                      style: const TextStyle(color: Colors.grey),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "€${article['GA_PVTTC'] ?? '0'}",
+                                      style: const TextStyle(fontSize: 14, color: Colors.black87),
+                                    ),
+                                  ],
                                 ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  child: Text(
-                                    "€${article['GA_PVTTC'] ?? '0'}",
-                                    style: const TextStyle(fontSize: 14, color: Colors.grey),
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        );
-                      },
-                      childCount: articles.length,
-                    ),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisExtent: 240,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                    ),
+                        ),
+                      );
+                    },
+                    childCount: articles.length,
                   ),
                 ),
         ],

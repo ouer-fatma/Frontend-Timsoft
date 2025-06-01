@@ -22,6 +22,7 @@ class AuthService {
         'prenom': prenom,
         'email': email,
         'motDePasse': motDePasse,
+        'role': 'client', // ✅ Add this line
       }),
     );
 
@@ -37,25 +38,32 @@ class AuthService {
   }) async {
     final url = Uri.parse('$baseUrl/login');
 
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email,
-        'motDePasse': motDePasse,
-      }),
-    );
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'motDePasse': motDePasse,
+        }),
+      );
 
-    final responseData = jsonDecode(response.body);
+      final responseData = jsonDecode(response.body);
 
-    if (response.statusCode == 200 && responseData['token'] != null) {
-      await StorageService.saveToken(responseData['token']);
+      if (response.statusCode == 200 && responseData['token'] != null) {
+        await StorageService.saveToken(responseData['token']);
+      }
+
+      return {
+        'status': response.statusCode,
+        'body': responseData,
+      };
+    } catch (e) {
+      return {
+        'status': 500,
+        'body': {'message': 'Erreur réseau ou serveur.', 'error': e.toString()},
+      };
     }
-
-    return {
-      'status': response.statusCode,
-      'body': responseData,
-    };
   }
 
   Future<void> logout() async {
@@ -92,7 +100,7 @@ class AuthService {
       final GoogleSignIn _googleSignIn = GoogleSignIn(
         scopes: ['email', 'profile'],
         clientId:
-            '755445236888-d3g1dmodl74krp8j59c507i2r2gi11gq.apps.googleusercontent.com', // ✅ Web Client ID
+            '755445236888-t23s8ruotiugblkiu3iju1pmgqs8gbci.apps.googleusercontent.com',
       );
 
       await _googleSignIn.signOut(); // 👈 Forces account re-selection
