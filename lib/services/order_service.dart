@@ -1,14 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:project/services/storage_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:project/config.dart';
 
 class OrderService {
-  final String baseUrl = 'http://127.0.0.1:3000/orders';
+  String get baseUrl => '${AppConfig.baseUrl}/orders';
 
   Future<List<Map<String, dynamic>>> fetchOrders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = await StorageService.getToken();
 
     final response = await http.get(
       Uri.parse(baseUrl),
@@ -22,7 +21,6 @@ class OrderService {
     }
   }
 
-  // ✅ CLIENT: Récupérer ses propres commandes
   Future<List<Map<String, dynamic>>> fetchClientOrders() async {
     final token = await StorageService.getToken();
     if (token == null) throw Exception("Token introuvable");
@@ -31,8 +29,7 @@ class OrderService {
     final codeTiers = payload['codeTiers'];
 
     final response = await http.get(
-      Uri.parse(
-          '$baseUrl/client/$codeTiers'), // 👈 crée cette route côté backend si elle n'existe pas
+      Uri.parse('$baseUrl/client/$codeTiers'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
@@ -43,10 +40,8 @@ class OrderService {
     }
   }
 
-  // ✅ ADMIN: Récupérer toutes les commandes
   Future<List<Map<String, dynamic>>> fetchAllOrders() async {
     final token = await StorageService.getToken();
-    if (token == null) throw Exception("Token introuvable");
 
     final response = await http.get(
       Uri.parse(baseUrl),
@@ -62,8 +57,9 @@ class OrderService {
 
   Future<List<Map<String, dynamic>>> fetchReturns() async {
     final token = await StorageService.getToken();
+
     final response = await http.get(
-      Uri.parse('http://localhost:3000/returns'),
+      Uri.parse('${AppConfig.baseUrl}/returns'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
@@ -82,10 +78,8 @@ class OrderService {
   }) async {
     final token = await StorageService.getToken();
 
-    final url = '$baseUrl/details/$nature/$souche/$numero/$indice';
-
     final response = await http.get(
-      Uri.parse(url),
+      Uri.parse('$baseUrl/details/$nature/$souche/$numero/$indice'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
@@ -96,10 +90,8 @@ class OrderService {
     }
   }
 
-  // ✅ Création commande
   Future<void> createOrder(Map<String, dynamic> orderData) async {
     final token = await StorageService.getToken();
-    if (token == null) throw Exception("Token introuvable");
 
     final response = await http.post(
       Uri.parse(baseUrl),
@@ -115,7 +107,6 @@ class OrderService {
     }
   }
 
-  // ✅ Mise à jour commande (optionnel)
   Future<void> updateOrder({
     required String nature,
     required String souche,
@@ -145,8 +136,7 @@ class OrderService {
     required int numero,
     required String indice,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token = await StorageService.getToken();
 
     final response = await http.delete(
       Uri.parse('$baseUrl/$nature/$souche/$numero/$indice'),
@@ -157,6 +147,4 @@ class OrderService {
       throw Exception('Erreur suppression commande');
     }
   }
-
-  // You can add createOrder(), updateOrder() later
 }

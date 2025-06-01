@@ -26,6 +26,7 @@ class _UsersScreenState extends State<UsersScreen> {
     try {
       users = await _userService.getAllUsers();
       filteredUsers = users;
+      print("Utilisateurs récupérés : $users"); // 👈 AJOUT ICI
     } catch (e) {
       print("Erreur de récupération des utilisateurs: $e");
     }
@@ -60,6 +61,10 @@ class _UsersScreenState extends State<UsersScreen> {
               TextField(
                 controller: nomController,
                 decoration: const InputDecoration(labelText: 'Nom'),
+              ),
+              TextField(
+                controller: prenomController,
+                decoration: const InputDecoration(labelText: 'Prénom'),
               ),
               TextField(
                 controller: emailController,
@@ -114,7 +119,10 @@ class _UsersScreenState extends State<UsersScreen> {
 
   void _showEditUserDialog(Map<String, dynamic> user) {
     final nomController = TextEditingController(text: user['Nom']);
+    final prenomController = TextEditingController(text: user['Prenom']);
     final emailController = TextEditingController(text: user['Email']);
+    final passwordController =
+        TextEditingController(); // leave blank if unchanged
     String selectedRole = user['Role'];
 
     showDialog(
@@ -129,8 +137,20 @@ class _UsersScreenState extends State<UsersScreen> {
                 decoration: const InputDecoration(labelText: 'Nom'),
               ),
               TextField(
+                controller: prenomController,
+                decoration: const InputDecoration(labelText: 'Prénom'),
+              ),
+              TextField(
                 controller: emailController,
                 decoration: const InputDecoration(labelText: 'Email'),
+              ),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText:
+                      'Nouveau mot de passe (laisser vide pour garder l\'ancien)',
+                ),
               ),
               DropdownButtonFormField<String>(
                 value: selectedRole,
@@ -157,8 +177,12 @@ class _UsersScreenState extends State<UsersScreen> {
                 await _userService.updateUser(
                   id: user['ID_Utilisateur'],
                   nom: nomController.text,
+                  prenom: prenomController.text,
                   email: emailController.text,
                   role: selectedRole,
+                  motDePasse: passwordController.text.isNotEmpty
+                      ? passwordController.text
+                      : null,
                 );
                 Navigator.pop(ctx);
                 fetchUsers();

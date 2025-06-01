@@ -1,11 +1,14 @@
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:project/config.dart';
 import 'package:project/services/storage_service.dart';
 
 class AuthService {
-  final String baseUrl = 'http://127.0.0.1:3000/auth';
+  String get baseUrl => '${AppConfig.baseUrl}/auth';
+
   Future<Map<String, dynamic>> register({
     required String nom,
     required String prenom,
@@ -22,7 +25,7 @@ class AuthService {
         'prenom': prenom,
         'email': email,
         'motDePasse': motDePasse,
-        'role': 'client', // ✅ Add this line
+        'role': 'client',
       }),
     );
 
@@ -67,13 +70,11 @@ class AuthService {
   }
 
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
+    await StorageService.clearToken();
   }
 
   Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
+    return await StorageService.getToken();
   }
 
   Future<Map<String, dynamic>> googleLoginWithToken(String idToken) async {
@@ -88,38 +89,81 @@ class AuthService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode == 200 && data['token'] != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('token', data['token']);
+      await StorageService.saveToken(data['token']);
     }
 
     return {'status': response.statusCode, 'body': data};
   }
 
   Future<Map<String, dynamic>> googleLogin() async {
+    if (kIsWeb) {
+      try {
+        final googleProvider = GoogleAuthProvider();
+
+        final userCredential =
+            await FirebaseAuth.instance.signInWithPopup(googleProvider);
+        final idToken = await userCredential.user?.getIdToken();
+
+        if (idToken == null) {
+          return {
+            'status': 400,
+            'body': {'message': 'Token Google Web non récupéré.'}
+          };
+        }
+
+        final response = await http.post(
+          Uri.parse('$baseUrl/google'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'token': idToken}),
+        );
+
+        final data = jsonDecode(response.body);
+        if (response.statusCode == 200 && data['token'] != null) {
+          await StorageService.saveToken(data['token']);
+        }
+
+        return {'status': response.statusCode, 'body': data};
+      } catch (e) {
+        return {
+          'status': 500,
+          'body': {
+            'message': 'Erreur Web Google Sign-In',
+            'error': e.toString()
+          },
+        };
+      }
+    }
+
     try {
-      final GoogleSignIn _googleSignIn = GoogleSignIn(
+      final GoogleSignIn googleSignIn = GoogleSignIn(
         scopes: ['email', 'profile'],
-        clientId:
-            '755445236888-t23s8ruotiugblkiu3iju1pmgqs8gbci.apps.googleusercontent.com',
+        // ✅ Ne PAS définir clientId pour Web — il est automatiquement géré via Firebase
+        clientId: kIsWeb
+            ? null
+            : '755445236888-44pjvgopqt8uvkpkfnt9ir78vph8hpb1.apps.googleusercontent.com',
       );
 
-      await _googleSignIn.signOut(); // 👈 Forces account re-selection
-      final GoogleSignInAccount? account = await _googleSignIn.signIn();
+      await googleSignIn.signOut(); // force account selection
+      final account = await googleSignIn.signIn();
 
       if (account == null) {
         return {
           'status': 400,
-          'body': {'message': 'Connexion annulée par l\'utilisateur'}
+          'body': {'message': 'Connexion annulée'},
         };
       }
 
-      final GoogleSignInAuthentication auth = await account.authentication;
-      // ✅ Print token to copy and test in Postman
-      print("📥 Google ID Token: ${auth.idToken}");
-      final url = Uri.parse('$baseUrl/google');
+      final auth = await account.authentication;
+
+      if (auth.idToken == null) {
+        return {
+          'status': 400,
+          'body': {'message': 'ID Token introuvable.'},
+        };
+      }
 
       final response = await http.post(
-        url,
+        Uri.parse('$baseUrl/google'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'token': auth.idToken}),
       );
@@ -127,8 +171,7 @@ class AuthService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['token'] != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('token', data['token']);
+        await StorageService.saveToken(data['token']);
       }
 
       return {'status': response.statusCode, 'body': data};
@@ -141,11 +184,12 @@ class AuthService {
   }
 
   Future<void> googleSignOut() async {
-    final GoogleSignIn _googleSignIn = GoogleSignIn(
+    final GoogleSignIn googleSignIn = GoogleSignIn(
       scopes: ['email', 'profile'],
-      clientId:
-          '755445236888-d3g1dmodl74krp8j59c507i2r2gi11gq.apps.googleusercontent.com',
+      clientId: kIsWeb
+          ? null
+          : '755445236888-d3g1dmodl74krp8j59c507i2r2gi11gq.apps.googleusercontent.com',
     );
-    await _googleSignIn.signOut();
+    await googleSignIn.signOut();
   }
 }

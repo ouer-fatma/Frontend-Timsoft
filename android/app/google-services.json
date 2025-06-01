@@ -7,6 +7,35 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:755445236888:android:f57fdf10d4a45937f97ced",
+        "android_client_info": {
+          "package_name": "com.timsoft.project"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "755445236888-d3g1dmodl74krp8j59c507i2r2gi11gq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBfAOTbIbd0yq2i1w2zkQzYTasiF3gUx-Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "755445236888-d3g1dmodl74krp8j59c507i2r2gi11gq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:755445236888:android:411753da6a5964ccf97ced",
         "android_client_info": {
           "package_name": "com.timsoft.timretail"
@@ -22,7 +51,7 @@
           }
         },
         {
-          "client_id": "755445236888-t23s8ruotiugblkiu3iju1pmgqs8gbci.apps.googleusercontent.com",
+          "client_id": "755445236888-d3g1dmodl74krp8j59c507i2r2gi11gq.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
@@ -35,7 +64,7 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "755445236888-t23s8ruotiugblkiu3iju1pmgqs8gbci.apps.googleusercontent.com",
+              "client_id": "755445236888-d3g1dmodl74krp8j59c507i2r2gi11gq.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

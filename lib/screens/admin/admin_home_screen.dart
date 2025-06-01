@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -137,9 +136,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               if (_selectedImage != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: kIsWeb
+                  child: _selectedImage!.bytes != null
                       ? Image.memory(_selectedImage!.bytes!, height: 100)
-                      : Image.file(File(_selectedImage!.path!), height: 100),
+                      : const Text("Aperçu indisponible"),
                 ),
             ],
           ),

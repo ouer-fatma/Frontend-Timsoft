@@ -1,19 +1,18 @@
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
+import 'package:project/config.dart';
 import 'package:project/services/storage_service.dart';
 import 'dart:io';
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ArticleService {
-  final String baseUrl = 'http://127.0.0.1:3000/articles';
+  String get _baseUrl => '${AppConfig.baseUrl}/articles';
 
   Future<List<Map<String, dynamic>>> fetchArticles() async {
     final token = await StorageService.getToken();
-
     final response = await http.get(
-      Uri.parse(baseUrl),
+      Uri.parse(_baseUrl),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -24,15 +23,14 @@ class ArticleService {
       final data = jsonDecode(response.body);
       return List<Map<String, dynamic>>.from(data);
     } else {
-      throw Exception('Erreur: ${response.statusCode}');
+      throw Exception('Failed to fetch articles: ${response.statusCode}');
     }
   }
 
   Future<List<Map<String, dynamic>>> searchArticles(String query) async {
     final token = await StorageService.getToken();
-
     final response = await http.get(
-      Uri.parse('$baseUrl/search/$query'),
+      Uri.parse('$_baseUrl/search/$query'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -48,9 +46,7 @@ class ArticleService {
   }
 
   Future<List<Map<String, dynamic>>> publicSearchArticles(String query) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/search/$query'),
-    );
+    final response = await http.get(Uri.parse('$_baseUrl/search/$query'));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -61,7 +57,7 @@ class ArticleService {
   }
 
   Future<List<Map<String, dynamic>>> publicFetchArticles() async {
-    final response = await http.get(Uri.parse(baseUrl));
+    final response = await http.get(Uri.parse(_baseUrl));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -79,7 +75,7 @@ class ArticleService {
     PlatformFile? image,
   }) async {
     final token = await StorageService.getToken();
-    final uri = Uri.parse(baseUrl);
+    final uri = Uri.parse(_baseUrl);
 
     final request = http.MultipartRequest('POST', uri)
       ..headers['Authorization'] = 'Bearer $token'
@@ -114,11 +110,6 @@ class ArticleService {
       final respStr = await response.stream.bytesToString();
       throw Exception("Erreur création: $respStr");
     }
-
-    // Debug (optional)
-    final respStr = await response.stream.bytesToString();
-    final decoded = jsonDecode(respStr);
-    print("🖼️ Image URL renvoyée : ${decoded['imageUrl']}");
   }
 
   Future<void> updateArticle({
@@ -130,7 +121,7 @@ class ArticleService {
     PlatformFile? image,
   }) async {
     final token = await StorageService.getToken();
-    final uri = Uri.parse('$baseUrl/$id');
+    final uri = Uri.parse('$_baseUrl/$id');
 
     final request = http.MultipartRequest('PUT', uri)
       ..headers['Authorization'] = 'Bearer $token'
@@ -138,9 +129,6 @@ class ArticleService {
       ..fields['GA_PVHT'] = pvht.toString()
       ..fields['GA_PVTTC'] = pvttc.toString()
       ..fields['GA_TENUESTOCK'] = tenueStock;
-
-        request.headers['Content-Type'] = 'multipart/form-data';
-
 
     if (image != null) {
       if (kIsWeb) {
@@ -171,7 +159,7 @@ class ArticleService {
     final token = await StorageService.getToken();
 
     final response = await http.delete(
-      Uri.parse('$baseUrl/$id'),
+      Uri.parse('$_baseUrl/$id'),
       headers: {
         'Authorization': 'Bearer $token',
       },

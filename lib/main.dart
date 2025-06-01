@@ -1,4 +1,9 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:project/config.dart';
 import 'package:project/screens/User/article_detail_screen.dart';
 import 'package:project/screens/admin/admin_home_screen.dart';
 import 'package:project/screens/auth/Create-account_screen.dart';
@@ -11,7 +16,21 @@ import 'package:project/services/storage_service.dart';
 import 'package:project/widgets/login_side_panel.dart';
 import 'package:project/widgets/register_side_panel.dart';
 
-void main() => runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Charger les variables d'environnement uniquement en mobile/desktop
+  if (!kIsWeb) {
+    await dotenv.load(fileName: ".env");
+  }
+
+  // Initialiser Firebase pour toutes les plateformes
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  runApp(const MyApp());
+}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -68,8 +87,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Future<void> fetchArticles() async {
     setState(() => isLoading = true);
     try {
-      final response =
-          await http.get(Uri.parse('http://localhost:3000/articles'));
+      final url = Uri.parse('${AppConfig.baseUrl}/articles');
+      final response = await http.get(url);
+
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {

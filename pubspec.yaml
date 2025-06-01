@@ -13,14 +13,19 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_svg: ^2.0.9
   image_picker: ^0.8.7+4
-  google_sign_in: ^6.3.0
+  firebase_core: ^2.30.0
+  firebase_auth: ^4.19.1
+  firebase_auth_web: ^5.8.13
+  js: ^0.6.7 
+  google_sign_in: ^6.1.0
   http: ^0.13.6
   shared_preferences: ^2.2.2
   jwt_decoder: ^2.0.1
   url_launcher: ^6.2.5
   animated_text_kit: ^4.2.2
-  file_picker: 5.2.11
+  file_picker: ^8.0.7
   intl: ^0.20.2
+  flutter_dotenv: ^5.0.2
 
 
 dev_dependencies:
@@ -42,6 +47,7 @@ flutter:
           weight: 700
 
   assets:
+    - .env
     - assets/uk_flag.png
     - assets/image.png
     - assets/logo.png

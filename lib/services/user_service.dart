@@ -1,13 +1,14 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:project/services/storage_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:project/config.dart';
 
 class UserService {
-  final String baseUrl = 'http://127.0.0.1:3000/users';
+  final String baseUrl = '${AppConfig.baseUrl}/users';
 
   Future<List<Map<String, dynamic>>> getAllUsers() async {
     final token = await StorageService.getToken();
+    if (token == null) throw Exception("Token introuvable");
 
     final response = await http.get(
       Uri.parse(baseUrl),
@@ -31,6 +32,7 @@ class UserService {
     required String role,
   }) async {
     final token = await StorageService.getToken();
+    if (token == null) throw Exception("Token introuvable");
 
     final response = await http.post(
       Uri.parse(baseUrl),
@@ -48,17 +50,32 @@ class UserService {
     );
 
     if (response.statusCode != 201) {
-      throw Exception(jsonDecode(response.body)['message']);
+      final body = _tryParseBody(response.body);
+      throw Exception(body['message'] ?? 'Erreur création utilisateur');
     }
   }
 
   Future<void> updateUser({
     required int id,
     required String nom,
+    required String prenom,
     required String email,
     required String role,
+    String? motDePasse,
   }) async {
     final token = await StorageService.getToken();
+    if (token == null) throw Exception("Token introuvable");
+
+    final body = {
+      'nom': nom,
+      'prenom': prenom,
+      'email': email,
+      'role': role,
+    };
+
+    if (motDePasse != null && motDePasse.trim().isNotEmpty) {
+      body['motDePasse'] = motDePasse;
+    }
 
     final response = await http.put(
       Uri.parse('$baseUrl/$id'),
@@ -66,20 +83,18 @@ class UserService {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({
-        'nom': nom,
-        'email': email,
-        'role': role,
-      }),
+      body: jsonEncode(body),
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Erreur lors de la mise à jour de l’utilisateur');
+      final error = jsonDecode(response.body);
+      throw Exception(error['message'] ?? 'Erreur mise à jour utilisateur');
     }
   }
 
   Future<void> deleteUser(int id) async {
     final token = await StorageService.getToken();
+    if (token == null) throw Exception("Token introuvable");
 
     final response = await http.delete(
       Uri.parse('$baseUrl/$id'),
@@ -90,6 +105,14 @@ class UserService {
 
     if (response.statusCode != 200) {
       throw Exception('Erreur lors de la suppression de l’utilisateur');
+    }
+  }
+
+  Map<String, dynamic> _tryParseBody(String body) {
+    try {
+      return jsonDecode(body);
+    } catch (_) {
+      return {'message': body};
     }
   }
 }
