@@ -153,6 +153,7 @@ class _PanierScreenState extends State<PanierScreen> {
 }
 
 
+
   double get total =>
       lignes.fold(0.0, (sum, l) => sum + (l['TotalLigne'] ?? 0));
 
