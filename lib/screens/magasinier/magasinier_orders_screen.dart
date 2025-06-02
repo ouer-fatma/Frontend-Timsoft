@@ -30,7 +30,12 @@ class _MagasinierOrdersScreenState extends State<MagasinierOrdersScreen> {
     try {
       final allOrders = await _orderService.fetchAllOrders();
       // 🔍 Filtrer uniquement les commandes en attente
-      orders = allOrders.where((o) => o['GP_STATUT'] == 'ATT').toList();
+      // Trier par date (du plus récent au plus ancien)
+      allOrders.sort((a, b) => DateTime.parse(b['GP_DATECREATION'])
+          .compareTo(DateTime.parse(a['GP_DATECREATION'])));
+
+// Garder les 10 premières (dernières en date)
+      orders = allOrders.take(10).toList();
     } catch (e) {
       errorMessage = e.toString();
     }
@@ -56,12 +61,15 @@ class _MagasinierOrdersScreenState extends State<MagasinierOrdersScreen> {
                       itemBuilder: (context, index) {
                         final order = orders[index];
                         return Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                           child: ListTile(
                             title: Text(
                               "CMD ${order['GP_NUMERO']} • ${order['GP_TIERS']}",
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
                             ),
                             subtitle: Text("Date: ${order['GP_DATECREATION']}"),
                             trailing: const Icon(Icons.arrow_forward_ios),
@@ -69,7 +77,8 @@ class _MagasinierOrdersScreenState extends State<MagasinierOrdersScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => MagasinierOrderDetailScreen(order: order),
+                                  builder: (_) =>
+                                      MagasinierOrderDetailScreen(order: order),
                                 ),
                               );
                             },

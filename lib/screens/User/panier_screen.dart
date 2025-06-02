@@ -1,9 +1,7 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:project/screens/User/create_order_screen.dart';
 import 'package:project/services/panier_service.dart';
 import 'package:project/services/storage_service.dart';
 
@@ -20,124 +18,27 @@ class _PanierScreenState extends State<PanierScreen> {
   List<dynamic> lignes = [];
   bool isLoading = true;
   bool hasFetched = false;
-  bool isRetrait = false; // Par défaut livraison (LOC)
-  List<dynamic> panier = [];
+  bool isRetrait = false;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     if (!hasFetched) {
       hasFetched = true;
       _fetchPanier();
     }
   }
 
-  Future<void> _validerCommande() async {
-    final token = await StorageService.getToken();
-    if (token == null) {
-      print("❌ Token manquant !");
-      return;
-    }
-
-    final decoded = JwtDecoder.decode(token);
-    final codeTiers = decoded['codeTiers'];
-    if (codeTiers == null) {
-      print("❌ codeTiers manquant !");
-      return;
-    }
-
-    try {
-      // 🔄 Obtenir le nouveau numéro de commande depuis le backend
-      final numeroRes = await http.get(
-        Uri.parse("http://localhost:3000/orders/next-numero"),
-        headers: {
-          "Authorization": "Bearer $token",
-        },
-      );
-
-      if (numeroRes.statusCode != 200) {
-        print("❌ Erreur obtention numéro: ${numeroRes.body}");
-        return;
-      }
-
-      final bodyDecoded = jsonDecode(numeroRes.body);
-      if (!bodyDecoded.containsKey('nextNumero')) {
-        print("❌ Erreur: champ nextNumero manquant dans la réponse.");
-        return;
-      }
-
-      final numero = bodyDecoded['nextNumero'];
-
-      // ✅ Récupérer les lignes valides du panier (exclure les fakes comme "0000000")
-      final lignesCommande = lignes
-          .where((item) => item["GL_ARTICLE"] != "0000000")
-          .map((item) => {
-                "GL_ARTICLE": item["GL_ARTICLE"],
-                "GL_QTEFACT": item["GL_QTEFACT"],
-              })
-          .toList();
-
-      if (lignesCommande.isEmpty) {
-        print("❌ Aucun article valide dans le panier.");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Panier vide ou invalide.")),
-        );
-        return;
-      }
-
-      final now = DateTime.now().toUtc().toIso8601String();
-
-      final body = {
-        "GP_NATUREPIECEG": "SAM", // ou "CMD" selon logique
-        "GP_SOUCHE": "04", // selon ta base
-        "GP_NUMERO": numero,
-        "GP_INDICEG": 1,
-        "GP_DATECREATION": now,
-        "GP_LIBRETIERS1": "LOC", // ou "S01" si tu ajoutes un switch
-        "GP_DEPOT": null, // ou "113" si retrait
-        "lignes": lignesCommande
-      };
-
-      print("🟡 Corps envoyé: ${jsonEncode(body)}");
-
-      final response = await http.post(
-        Uri.parse("http://localhost:3000/orders"),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token"
-        },
-        body: jsonEncode(body),
-      );
-
-      print("Réponse création commande: ${response.body}");
-
-      if (response.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("✅ Commande créée avec succès.")),
-        );
-        setState(() {
-          lignes.clear(); // vider le panier local
-        });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Échec commande: ${response.body}")),
-        );
-      }
-    } catch (e) {
-      print("❌ Erreur validation commande: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Erreur: $e")),
-      );
-    }
-  }
-
   Future<void> _fetchPanier() async {
-    print("📦 [_fetchPanier] called");
     setState(() => isLoading = true);
-    try {
-      final panierData = await PanierService().getPanier();
-      print("📥 [_fetchPanier] panier reçu : $panierData");
+    final stopwatch = Stopwatch()..start();
 
+    try {
+      final panierData = await _panierService.getPanier(codeTiers: widget.codeTiers);
+      final elapsed = stopwatch.elapsedMilliseconds;
+      if (elapsed < 300) {
+        await Future.delayed(Duration(milliseconds: 300 - elapsed));
+      }
       setState(() {
         lignes = panierData;
         isLoading = false;
@@ -150,11 +51,113 @@ class _PanierScreenState extends State<PanierScreen> {
     }
   }
 
-  double get total => lignes.fold(0, (sum, l) => sum + (l['TotalLigne'] ?? 0));
+  Future<void> _supprimerArticle(String codeArticle, String codeSDIM) async {
+    try {
+      await _panierService.supprimerDuPanier(
+        widget.codeTiers,
+        codeArticle,
+        codesdim: codeSDIM,
+      );
+
+      setState(() {
+        lignes.removeWhere((ligne) =>
+            ligne['GL_ARTICLE'] == codeArticle &&
+            ligne['GL_CODESDIM'] == codeSDIM);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Article supprimé du panier.")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erreur suppression : $e")),
+      );
+    }
+  }
+
+  Future<void> _validerCommande() async {
+  final token = await StorageService.getToken();
+  if (token == null || JwtDecoder.isExpired(token)) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Authentification invalide.")),
+    );
+    return;
+  }
+
+  final decoded = JwtDecoder.decode(token);
+  final codeTiers = decoded['codeTiers'];
+  if (codeTiers == null) return;
+
+  try {
+    final numeroRes = await http.get(
+      Uri.parse("http://localhost:3000/orders/next-numero"),
+      headers: {"Authorization": "Bearer $token"},
+    );
+
+    if (numeroRes.statusCode != 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Erreur génération numéro de commande.")),
+      );
+      return;
+    }
+
+    final bodyDecoded = jsonDecode(numeroRes.body);
+    final numero = bodyDecoded['nextNumero'];
+
+    if (lignes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Panier vide ou invalide.")),
+      );
+      return;
+    }
+
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    final body = {
+      "GP_NATUREPIECEG": "CC", // ✅ Correct nature pièce commande
+      "GP_SOUCHE": "04",
+      "GP_NUMERO": numero,
+      "GP_INDICEG": 1,
+      "GP_DATECREATION": now,
+      "GP_LIBRETIERS1": isRetrait ? "S01" : "LOC",
+      "GP_DEPOT": isRetrait ? "113" : null
+    };
+
+    final response = await http.post(
+      Uri.parse("http://localhost:3000/orders"),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token"
+      },
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 201) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Commande créée avec succès.")),
+      );
+      setState(() {
+        lignes.clear();
+      });
+      await _fetchPanier(); // 🆕 Optionnel : refresh l'écran panier
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ Échec commande: ${response.body}")),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("❌ Erreur: $e")),
+    );
+  }
+}
+
+
+  double get total =>
+      lignes.fold(0.0, (sum, l) => sum + (l['TotalLigne'] ?? 0));
 
   @override
   Widget build(BuildContext context) {
-    print("🔁 [build] PanierScreen reconstruit");
     return Scaffold(
       appBar: AppBar(
         title: const Text("Mon Panier"),
@@ -171,14 +174,31 @@ class _PanierScreenState extends State<PanierScreen> {
                         itemCount: lignes.length,
                         itemBuilder: (context, index) {
                           final ligne = lignes[index];
+                          final dim1 = ligne['dim1Libelle'] ?? '-';
+                          final dim2 = ligne['dim2Libelle'] ?? '-';
+
                           return ListTile(
                             title: Text(ligne['GA_LIBELLE'] ?? 'Sans libellé'),
                             subtitle: Text(
-                              "Quantité: ${ligne['GL_QTEFACT']} | Prix: €${ligne['GA_PVTTC']}",
+                              "Quantité: ${ligne['GL_QTEFACT']} | Prix: €${ligne['GA_PVTTC']}\n"
+                              "Taille: $dim1 | Couleur: $dim2",
                             ),
-                            trailing: Text("Total: €${ligne['TotalLigne']}",
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold)),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  "€${ligne['TotalLigne'].toStringAsFixed(2)}",
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () => _supprimerArticle(
+                                    ligne['GL_ARTICLE'],
+                                    ligne['GL_CODESDIM'],
+                                  ),
+                                ),
+                              ],
+                            ),
                           );
                         },
                       ),
@@ -191,31 +211,25 @@ class _PanierScreenState extends State<PanierScreen> {
                           SwitchListTile(
                             title: const Text("Retrait en dépôt"),
                             value: isRetrait,
-                            onChanged: (val) {
-                              setState(() {
-                                isRetrait = val;
-                              });
-                            },
+                            onChanged: (val) => setState(() => isRetrait = val),
                           ),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               const Text(
                                 "Total panier:",
-                                style: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold),
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                               ),
                               Text(
                                 "€${total.toStringAsFixed(2)}",
-                                style: const TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold),
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                               ),
                             ],
                           ),
                           const SizedBox(height: 16),
                           ElevatedButton(
                             onPressed: _validerCommande,
-                            child: Text("Valider la commande"),
+                            child: const Text("Valider la commande"),
                           ),
                         ],
                       ),

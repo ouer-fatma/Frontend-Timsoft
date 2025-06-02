@@ -5,13 +5,20 @@ class MagasinierReturnsScreen extends StatefulWidget {
   const MagasinierReturnsScreen({super.key});
 
   @override
-  State<MagasinierReturnsScreen> createState() => _MagasinierReturnsScreenState();
+  State<MagasinierReturnsScreen> createState() =>
+      _MagasinierReturnsScreenState();
 }
 
 class _MagasinierReturnsScreenState extends State<MagasinierReturnsScreen> {
   List<Map<String, dynamic>> returns = [];
   bool isLoading = true;
   String? error;
+  String _formatDate(dynamic rawDate) {
+    if (rawDate == null) return '---';
+    final dt = DateTime.tryParse(rawDate.toString());
+    if (dt == null) return '---';
+    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+  }
 
   @override
   void initState() {
@@ -26,10 +33,20 @@ class _MagasinierReturnsScreenState extends State<MagasinierReturnsScreen> {
     });
 
     try {
-      // You need to implement this method in your OrderService
-      final res = await OrderService().fetchReturns(); 
+      final res = await OrderService().fetchReturns();
+
+      // ✅ Sort by date (assuming DATE_RETOUR is in ISO format)
+      res.sort((a, b) {
+        final dateA =
+            DateTime.tryParse(a['DATE_RETOUR'] ?? '') ?? DateTime(1970);
+        final dateB =
+            DateTime.tryParse(b['DATE_RETOUR'] ?? '') ?? DateTime(1970);
+        return dateB.compareTo(dateA);
+      });
+
+      // ✅ Keep only the last 10
       setState(() {
-        returns = res;
+        returns = res.take(10).toList();
         isLoading = false;
       });
     } catch (e) {
@@ -61,13 +78,14 @@ class _MagasinierReturnsScreenState extends State<MagasinierReturnsScreen> {
                         return Card(
                           margin: const EdgeInsets.symmetric(vertical: 6),
                           child: ListTile(
-                            leading: const Icon(Icons.replay, color: Colors.redAccent),
+                            leading: const Icon(Icons.replay,
+                                color: Colors.redAccent),
                             title: Text("Retour #${r['RETURN_ID'] ?? 'N/A'}"),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text("Client: ${r['TIERS'] ?? '---'}"),
-                                Text("Date: ${r['DATE_RETOUR'] ?? '---'}"),
+                                Text("Date: ${_formatDate(r['DATE_RETOUR'])}"),
                                 Text("Motif: ${r['MOTIF'] ?? 'Non précisé'}"),
                               ],
                             ),
