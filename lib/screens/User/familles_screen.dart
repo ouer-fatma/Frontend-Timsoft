@@ -28,6 +28,7 @@ class _FamillesScreenState extends State<FamillesScreen> {
     'CHE': 'Chemises',
     'CHEMISES': 'Chemises',
     'COC': 'Cocooning',
+    'COS': 'Costume',
     'COM': 'Combinaisons',
     'DEN': 'Denim',
     'ENS': 'Ensembles',
