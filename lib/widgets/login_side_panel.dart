@@ -71,8 +71,10 @@ class _LoginSidePanelState extends State<LoginSidePanel> {
       await StorageService.saveToken(token);
 
       final decoded = JwtDecoder.decode(token);
-      final String role = decoded['role'];
-      final String nom = decoded['nom'];
+      final String role = decoded['role'] ?? 'client';
+      final String nom = decoded.containsKey('nom')
+          ? decoded['nom']
+          : (decoded['T_LIBELLE'] ?? decoded['email'] ?? 'Utilisateur');
 
       Widget screen;
       if (role == 'admin') {
@@ -111,8 +113,10 @@ class _LoginSidePanelState extends State<LoginSidePanel> {
         await StorageService.saveToken(token);
 
         final decoded = JwtDecoder.decode(token);
-        final String role = decoded['role'];
-        final String nom = decoded['nom'];
+        final String role = decoded['role'] ?? 'client';
+        final String nom = decoded.containsKey('nom')
+            ? decoded['nom']
+            : (decoded['T_LIBELLE'] ?? decoded['email'] ?? 'Utilisateur');
 
         Widget screen;
         if (role == 'admin') {

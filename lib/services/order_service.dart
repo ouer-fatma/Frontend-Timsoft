@@ -55,6 +55,21 @@ class OrderService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> fetchPendingOrders() async {
+    final token = await StorageService.getToken();
+
+    final response = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/orders/attente'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(response.body));
+    } else {
+      throw Exception('Erreur récupération commandes magasinier');
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchReturns() async {
     final token = await StorageService.getToken();
 

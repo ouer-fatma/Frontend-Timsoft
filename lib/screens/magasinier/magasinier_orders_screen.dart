@@ -28,7 +28,8 @@ class _MagasinierOrdersScreenState extends State<MagasinierOrdersScreen> {
     });
 
     try {
-      final allOrders = await _orderService.fetchAllOrders();
+      final allOrders = await _orderService.fetchPendingOrders();
+
       // 🔍 Filtrer uniquement les commandes en attente
       // Trier par date (du plus récent au plus ancien)
       allOrders.sort((a, b) => DateTime.parse(b['GP_DATECREATION'])

@@ -25,84 +25,94 @@ class PanierService {
 
   // 🧺 Initialiser un panier pour un client donné
   Future<void> initPanier(String codeTiers) async {
-  try {
-    final response = await http.post(
-      Uri.parse('$baseUrl/init'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'codeTiers': codeTiers.trim().toUpperCase()}),
-    );
+    try {
+      final token = await StorageService.getToken(); // ✅ Récupère le token
+      final response = await http.post(
+        Uri.parse('$baseUrl/init'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token', // ✅ Ajoute le token ici
+        },
+        body: jsonEncode({'codeTiers': codeTiers.trim().toUpperCase()}),
+      );
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final result = jsonDecode(response.body);
-      print("✅ Panier initialisé ou existant : ${result['message']}");
-    } else {
-      throw Exception("Erreur à l'initialisation du panier : ${response.body}");
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final result = jsonDecode(response.body);
+        print("✅ Panier initialisé ou existant : ${result['message']}");
+      } else {
+        throw Exception(
+            "Erreur à l'initialisation du panier : ${response.body}");
+      }
+    } catch (e) {
+      throw Exception("Erreur réseau lors de l'initialisation du panier : $e");
     }
-  } catch (e) {
-    throw Exception("Erreur réseau lors de l'initialisation du panier : $e");
   }
-}
-
 
   // 📦 Récupérer les lignes du panier
   Future<List<Map<String, dynamic>>> getPanier({String? codeTiers}) async {
-  final tiers = (codeTiers ?? await _getCodeTiersFromToken()).trim().toUpperCase();
+    final tiers =
+        (codeTiers ?? await _getCodeTiersFromToken()).trim().toUpperCase();
 
-  try {
-    // Toujours initier le panier avant de le récupérer
-    await initPanier(tiers);
+    try {
+      // Toujours initier le panier avant de le récupérer
+      await initPanier(tiers);
 
-    final response = await http.get(
-      Uri.parse('$baseUrl/$tiers'),
-      headers: {'Content-Type': 'application/json'},
-    );
+      final token = await StorageService.getToken(); // 🔐 ajout du token
+      final response = await http.get(
+        Uri.parse('$baseUrl/$tiers'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token', // ✅ INDISPENSABLE
+        },
+      );
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return List<Map<String, dynamic>>.from(data['panier']);
-    } else if (response.statusCode == 404) {
-      // Cas géré proprement : panier vide
-      print("ℹ️ Aucun panier trouvé.");
-      return [];
-    } else {
-      throw Exception("Erreur récupération du panier : ${response.body}");
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data['panier']);
+      } else if (response.statusCode == 404) {
+        // Cas géré proprement : panier vide
+        print("ℹ️ Aucun panier trouvé.");
+        return [];
+      } else {
+        throw Exception("Erreur récupération du panier : ${response.body}");
+      }
+    } catch (e) {
+      throw Exception("Erreur réseau lors de la récupération du panier : $e");
     }
-  } catch (e) {
-    throw Exception("Erreur réseau lors de la récupération du panier : $e");
   }
-}
-
 
   // ➕ Ajouter un article avec dimensions (basé sur GA_ARTICLE + GL_CODESDIM)
   Future<void> ajouterAuPanier({
-  required String codeTiers,
-  required String codeArticle,
-  required double quantite,
-  required String dim1Libelle,
-  required String dim2Libelle,
-  required String grilleDim1,
-  required String grilleDim2,
-}) async {
-  final response = await http.post(
-    Uri.parse('$baseUrl/ajouter'),
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode({
-      "codeTiers": codeTiers.trim().toUpperCase(),
-      "codeArticle": codeArticle.trim().toUpperCase(),
-      "quantite": quantite,
-      "dim1Libelle": dim1Libelle.trim().toUpperCase(),
-      "dim2Libelle": dim2Libelle.trim().toUpperCase(),
-      "grilleDim1": grilleDim1.trim().toUpperCase(),
-      "grilleDim2": grilleDim2.trim().toUpperCase(),
-    }),
-  );
+    required String codeTiers,
+    required String codeArticle,
+    required double quantite,
+    required String dim1Libelle,
+    required String dim2Libelle,
+    required String grilleDim1,
+    required String grilleDim2,
+  }) async {
+    final token = await StorageService.getToken(); // 🔐 Ajout
+    final response = await http.post(
+      Uri.parse('$baseUrl/ajouter'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token', // ✅ OBLIGATOIRE
+      },
+      body: jsonEncode({
+        "codeTiers": codeTiers.trim().toUpperCase(),
+        "codeArticle": codeArticle.trim().toUpperCase(),
+        "quantite": quantite,
+        "dim1Libelle": dim1Libelle.trim().toUpperCase(),
+        "dim2Libelle": dim2Libelle.trim().toUpperCase(),
+        "grilleDim1": grilleDim1.trim().toUpperCase(),
+        "grilleDim2": grilleDim2.trim().toUpperCase(),
+      }),
+    );
 
-  if (response.statusCode != 200 && response.statusCode != 201) {
-    throw Exception("Erreur ajout au panier : ${response.body}");
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception("Erreur ajout au panier : ${response.body}");
+    }
   }
-}
-
-
 
   // ❌ Supprimer une ligne du panier avec son code dimension combiné (GL_CODESDIM)
   Future<void> supprimerDuPanier(

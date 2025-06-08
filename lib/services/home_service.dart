@@ -72,6 +72,13 @@ class ArticleService {
     required String libelle,
     required double pvht,
     required double pvttc,
+    required String tenueStock,
+    String? codeBarre,
+    String? famille,
+    String? codeDim1,
+    String? grilleDim1,
+    String? codeDim2,
+    String? grilleDim2,
     PlatformFile? image,
   }) async {
     final token = await StorageService.getToken();
@@ -81,11 +88,16 @@ class ArticleService {
       ..headers['Authorization'] = 'Bearer $token'
       ..fields['GA_ARTICLE'] = code
       ..fields['GA_CODEARTICLE'] = code
-      ..fields['GA_CODEBARRE'] = ''
+      ..fields['GA_CODEBARRE'] = codeBarre ?? ''
       ..fields['GA_LIBELLE'] = libelle
       ..fields['GA_PVHT'] = pvht.toString()
       ..fields['GA_PVTTC'] = pvttc.toString()
-      ..fields['GA_TENUESTOCK'] = 'O';
+      ..fields['GA_TENUESTOCK'] = tenueStock
+      ..fields['GA_FAMILLENIV1'] = famille ?? ''
+      ..fields['GA_CODEDIM1'] = codeDim1 ?? ''
+      ..fields['GA_GRILLEDIM1'] = grilleDim1 ?? ''
+      ..fields['GA_CODEDIM2'] = codeDim2 ?? ''
+      ..fields['GA_GRILLEDIM2'] = grilleDim2 ?? '';
 
     if (image != null) {
       if (kIsWeb) {
@@ -118,6 +130,12 @@ class ArticleService {
     required double pvht,
     required double pvttc,
     required String tenueStock,
+    required String codeBarre,
+    required String famille,
+    required String codeDim1,
+    required String grilleDim1,
+    required String codeDim2,
+    required String grilleDim2,
     PlatformFile? image,
   }) async {
     final token = await StorageService.getToken();
@@ -128,7 +146,13 @@ class ArticleService {
       ..fields['GA_LIBELLE'] = libelle
       ..fields['GA_PVHT'] = pvht.toString()
       ..fields['GA_PVTTC'] = pvttc.toString()
-      ..fields['GA_TENUESTOCK'] = tenueStock;
+      ..fields['GA_TENUESTOCK'] = tenueStock
+      ..fields['GA_CODEBARRE'] = codeBarre
+      ..fields['GA_FAMILLENIV1'] = famille
+      ..fields['GA_CODEDIM1'] = codeDim1
+      ..fields['GA_GRILLEDIM1'] = grilleDim1
+      ..fields['GA_CODEDIM2'] = codeDim2
+      ..fields['GA_GRILLEDIM2'] = grilleDim2;
 
     if (image != null) {
       if (kIsWeb) {

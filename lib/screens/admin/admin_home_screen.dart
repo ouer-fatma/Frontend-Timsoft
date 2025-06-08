@@ -72,7 +72,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   void _showArticleDialog({Map<String, dynamic>? article}) {
+    final formKey = GlobalKey<FormState>();
+
     if (article == null) _selectedImage = null;
+
     final codeController =
         TextEditingController(text: article?['GA_CODEARTICLE']);
     final libelleController =
@@ -81,33 +84,88 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         TextEditingController(text: article?['GA_PVHT']?.toString());
     final pvttcController =
         TextEditingController(text: article?['GA_PVTTC']?.toString());
+    final codeBarreController =
+        TextEditingController(text: article?['GA_CODEBARRE'] ?? '');
+    final familleController =
+        TextEditingController(text: article?['GA_FAMILLENIV1'] ?? '');
+    final codeDim1Controller =
+        TextEditingController(text: article?['GA_CODEDIM1'] ?? '');
+    final grilleDim1Controller =
+        TextEditingController(text: article?['GA_GRILLEDIM1'] ?? '');
+    final codeDim2Controller =
+        TextEditingController(text: article?['GA_CODEDIM2'] ?? '');
+    final grilleDim2Controller =
+        TextEditingController(text: article?['GA_GRILLEDIM2'] ?? '');
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        scrollable: true,
         title:
             Text(article == null ? "Ajouter un article" : "Modifier l'article"),
-        content: SingleChildScrollView(
+        content: Form(
+          key: formKey,
           child: Column(
             children: [
-              TextField(
+              const Text("Informations générales",
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              TextFormField(
                 controller: codeController,
-                decoration: const InputDecoration(labelText: "Code Article"),
+                decoration: const InputDecoration(labelText: "Code Article *"),
+                validator: (val) =>
+                    val == null || val.trim().isEmpty ? 'Code requis' : null,
               ),
-              TextField(
+              TextFormField(
                 controller: libelleController,
-                decoration: const InputDecoration(labelText: "Libellé"),
+                decoration: const InputDecoration(labelText: "Libellé *"),
+                validator: (val) =>
+                    val == null || val.trim().isEmpty ? 'Libellé requis' : null,
               ),
-              TextField(
+              TextFormField(
                 controller: pvhtController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: "Prix HT"),
+                validator: (val) {
+                  final v = double.tryParse(val ?? '');
+                  return (v == null || v < 0) ? "Prix HT invalide" : null;
+                },
               ),
-              TextField(
+              TextFormField(
                 controller: pvttcController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: "Prix TTC"),
+                validator: (val) {
+                  final v = double.tryParse(val ?? '');
+                  return (v == null || v < 0) ? "Prix TTC invalide" : null;
+                },
+              ),
+              TextFormField(
+                controller: codeBarreController,
+                decoration: const InputDecoration(labelText: "Code Barre"),
+              ),
+              TextFormField(
+                controller: familleController,
+                decoration:
+                    const InputDecoration(labelText: "Famille (FIL, FEM...)"),
+              ),
+              const SizedBox(height: 12),
+              const Text("Dimensions",
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              TextFormField(
+                controller: codeDim1Controller,
+                decoration: const InputDecoration(labelText: "Code Dim 1"),
+              ),
+              TextFormField(
+                controller: grilleDim1Controller,
+                decoration: const InputDecoration(labelText: "Grille Dim 1"),
+              ),
+              TextFormField(
+                controller: codeDim2Controller,
+                decoration: const InputDecoration(labelText: "Code Dim 2"),
+              ),
+              TextFormField(
+                controller: grilleDim2Controller,
+                decoration: const InputDecoration(labelText: "Grille Dim 2"),
               ),
               const SizedBox(height: 10),
               ElevatedButton.icon(
@@ -117,17 +175,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     allowedExtensions: ['jpg', 'jpeg', 'png'],
                     withData: true,
                   );
-
                   if (result != null && result.files.single.bytes != null) {
-                    print(
-                        "🟢 Image sélectionnée : ${result.files.single.name}");
-                    print(
-                        "📦 Bytes size: ${result.files.single.bytes!.length}");
-                    setState(() {
-                      _selectedImage = result.files.single;
-                    });
-                  } else {
-                    print("❌ Aucun fichier sélectionné ou bytes null");
+                    setState(() => _selectedImage = result.files.single);
                   }
                 },
                 icon: const Icon(Icons.image),
@@ -150,6 +199,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+
               try {
                 if (article == null) {
                   await _articleService.createArticle(
@@ -157,24 +208,48 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     libelle: libelleController.text,
                     pvht: double.tryParse(pvhtController.text) ?? 0.0,
                     pvttc: double.tryParse(pvttcController.text) ?? 0.0,
+                    tenueStock: 'O',
+                    codeBarre: codeBarreController.text,
+                    famille: familleController.text,
+                    codeDim1: codeDim1Controller.text,
+                    grilleDim1: grilleDim1Controller.text,
+                    codeDim2: codeDim2Controller.text,
+                    grilleDim2: grilleDim2Controller.text,
                     image: _selectedImage,
                   );
                 } else {
+                  final id = article['GA_ARTICLE'];
+                  if (id == null || id.toString().trim().isEmpty) {
+                    throw Exception(
+                        "Identifiant d'article manquant ou invalide.");
+                  }
+
                   await _articleService.updateArticle(
-                    id: article['GA_ARTICLE'],
+                    id: id,
                     libelle: libelleController.text,
                     pvht: double.tryParse(pvhtController.text) ?? 0.0,
                     pvttc: double.tryParse(pvttcController.text) ?? 0.0,
                     tenueStock: 'O',
+                    codeBarre: codeBarreController.text,
+                    famille: familleController.text,
+                    codeDim1: codeDim1Controller.text,
+                    grilleDim1: grilleDim1Controller.text,
+                    codeDim2: codeDim2Controller.text,
+                    grilleDim2: grilleDim2Controller.text,
                     image: _selectedImage,
                   );
                 }
 
-                await fetchArticles(); // ✅ Refresh first
-                if (context.mounted) Navigator.pop(ctx); // ✅ Then close dialog
-                _selectedImage = null;
+                await fetchArticles();
+                if (context.mounted) Navigator.pop(ctx);
+                setState(() => _selectedImage = null); // <- wrap in setState
               } catch (e) {
                 print("Erreur : $e");
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Erreur : ${e.toString()}')),
+                  );
+                }
               }
             },
             child: Text(article == null ? "Ajouter" : "Enregistrer"),
