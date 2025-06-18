@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 class ArticleService {
   static const String _baseUrl = 'http://localhost:3000';
 
+
   static Future<List<String>> fetchFamilles() async {
     final response = await http.get(Uri.parse('$_baseUrl/articles/familles'));
 
@@ -14,4 +15,5 @@ class ArticleService {
       throw Exception('Échec de chargement des familles');
     }
   }
+  
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:project/screens/magasinier/TransfertListScreen%20.dart';
 import 'package:project/screens/magasinier/magasinier_orders_screen.dart';
 import 'package:project/screens/magasinier/magasinier_order_detail_screen.dart';
 import 'package:project/screens/magasinier/magasinier_returns_screen.dart';
@@ -44,6 +45,22 @@ class MagasinierHomeScreen extends StatelessWidget {
             },
           ),
           const SizedBox(height: 16),
+          ListTile(
+  leading: const Icon(Icons.compare_arrows, color: Colors.teal),
+  title: const Text("Transferts", style: TextStyle(fontWeight: FontWeight.bold)),
+  subtitle: const Text("Voir les demandes de transfert"),
+  tileColor: Colors.grey.shade100,
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  trailing: const Icon(Icons.chevron_right),
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const TransfertListScreen()),
+    );
+  },
+),
+const SizedBox(height: 12),
+
           // Ajoute d'autres accès ici (ex: inventaire)
         ],
       ),
@@ -67,4 +84,5 @@ class MagasinierHomeScreen extends StatelessWidget {
       ),
     );
   }
+  
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:project/services/user_service.dart';
+import 'package:project/screens/admin/create_magasinier_screen.dart';
 
 class UsersScreen extends StatefulWidget {
   const UsersScreen({super.key});
@@ -225,30 +226,56 @@ class _UsersScreenState extends State<UsersScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _searchUsers,
-              decoration: InputDecoration(
-                hintText: "Rechercher un utilisateur...",
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide.none,
-                ),
+ @override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: Text("Utilisateurs"),
+      actions: [
+        IconButton(
+          icon: Icon(Icons.store_mall_directory),
+          tooltip: "Créer un magasinier",
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => CreateMagasinierScreen()),
+            ).then((_) => fetchUsers()); // recharger après ajout
+          },
+        ),
+      ],
+    ),
+    body: Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: TextField(
+            controller: _searchController,
+            onChanged: _searchUsers,
+            decoration: InputDecoration(
+              hintText: "Rechercher un utilisateur...",
+              prefixIcon: const Icon(Icons.search),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30),
+                borderSide: BorderSide.none,
               ),
             ),
           ),
-          Expanded(
+        ),
+        if (!isLoading)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                "Utilisateurs trouvés : ${filteredUsers.length}",
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+          ),
+        Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : ListView.builder(
@@ -301,4 +328,5 @@ class _UsersScreenState extends State<UsersScreen> {
       ),
     );
   }
+  
 }

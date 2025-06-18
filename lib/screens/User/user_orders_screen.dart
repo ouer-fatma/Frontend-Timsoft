@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:project/screens/User/order_detail_screen.dart';
 import 'package:project/services/order_service.dart';
-import 'package:project/services/storage_service.dart';
 
 class UserOrdersScreen extends StatefulWidget {
-  const UserOrdersScreen({super.key, required String codeTiers});
+  const UserOrdersScreen({super.key,required String codeTiers
+  });
 
   @override
   State<UserOrdersScreen> createState() => _UserOrdersScreenState();
@@ -23,9 +23,9 @@ class _UserOrdersScreenState extends State<UserOrdersScreen> {
 
   Future<void> _fetchClientOrders() async {
     try {
-      final orders = await OrderService().fetchClientOrders();
+      final fetchedOrders = await _orderService.fetchClientOrders();
       setState(() {
-        this.orders = orders;
+        orders = fetchedOrders;
         isLoading = false;
       });
     } catch (e) {
@@ -33,6 +33,32 @@ class _UserOrdersScreenState extends State<UserOrdersScreen> {
       setState(() {
         isLoading = false;
       });
+    }
+  }
+
+  String getStatutLabel(String code) {
+    switch (code) {
+      case 'ENR':
+        return '✅ Enregistrée';
+      case 'ATT':
+        return '⏳ En attente';
+      case 'EXP':
+        return '📦 Expédiée';
+      default:
+        return '❓ Inconnu';
+    }
+  }
+
+  Color getStatutColor(String code) {
+    switch (code) {
+      case 'ENR':
+        return Colors.green;
+      case 'ATT':
+        return Colors.orange;
+      case 'EXP':
+        return Colors.blue;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -48,24 +74,26 @@ class _UserOrdersScreenState extends State<UserOrdersScreen> {
                   itemCount: orders.length,
                   itemBuilder: (context, index) {
                     final order = orders[index];
+                    final statut = order['GP_STATUTPIECE'] ?? 'ATT';
+
                     return Card(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       elevation: 3,
                       child: ListTile(
                         title: Text("Commande N°: ${order['GP_NUMERO']}"),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text("Date: ${order['GP_DATECREATION']}"),
+                            Text("Date: ${order['GP_DATECREATION'] ?? ''}"),
+                            const SizedBox(height: 4),
                             Text(
-                              "Statut: ${order['GP_STATUTPIECE'] == 'ENR' ? '✅ Enregistrée' : '⏳ En attente'}",
+                              "Statut: ${getStatutLabel(statut)}",
                               style: TextStyle(
-                                color: order['GP_STATUTPIECE'] == 'ENR'
-                                    ? Colors.green
-                                    : Colors.orange,
+                                color: getStatutColor(statut),
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
@@ -76,38 +104,44 @@ class _UserOrdersScreenState extends State<UserOrdersScreen> {
                             IconButton(
                               icon: const Icon(Icons.chevron_right),
                               onPressed: () {
+                                final nature = order['GP_NATUREPIECEG'];
+                                final souche = order['GP_SOUCHE'];
+                                final indice = order['GP_INDICEG'];
+                                final numero = order['GP_NUMERO'];
+
+                                if (nature == null || souche == null || indice == null || numero == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text("Détails indisponibles pour cette commande.")),
+                                  );
+                                  return;
+                                }
+
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) =>
-                                        OrderDetailScreen(order: order),
+                                    builder: (_) => OrderDetailScreen(order: order),
                                   ),
                                 );
                               },
                             ),
-                            if (order['GP_STATUTPIECE'] ==
-                                'ATT') // 👈 Seulement les commandes en attente
+                            if (statut == 'ATT')
                               IconButton(
-                                icon:
-                                    const Icon(Icons.cancel, color: Colors.red),
+                                icon: const Icon(Icons.cancel, color: Colors.red),
                                 tooltip: 'Annuler',
                                 onPressed: () async {
                                   final confirm = await showDialog<bool>(
                                     context: context,
                                     builder: (_) => AlertDialog(
                                       title: const Text("Confirmation"),
-                                      content: const Text(
-                                          "Voulez-vous annuler cette commande ?"),
+                                      content: const Text("Voulez-vous annuler cette commande ?"),
                                       actions: [
                                         TextButton(
                                           child: const Text("Non"),
-                                          onPressed: () =>
-                                              Navigator.pop(context, false),
+                                          onPressed: () => Navigator.pop(context, false),
                                         ),
                                         TextButton(
                                           child: const Text("Oui"),
-                                          onPressed: () =>
-                                              Navigator.pop(context, true),
+                                          onPressed: () => Navigator.pop(context, true),
                                         ),
                                       ],
                                     ),
@@ -115,21 +149,18 @@ class _UserOrdersScreenState extends State<UserOrdersScreen> {
 
                                   if (confirm == true) {
                                     try {
-                                      await OrderService().deleteOrder(
+                                      await _orderService.deleteOrder(
                                         nature: order['GP_NATUREPIECEG'],
                                         souche: order['GP_SOUCHE'],
                                         numero: order['GP_NUMERO'],
                                         indice: order['GP_INDICEG'],
                                       );
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                            content: Text("Commande annulée.")),
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text("Commande annulée.")),
                                       );
-                                      _fetchClientOrders() ;
+                                      _fetchClientOrders();
                                     } catch (e) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
+                                      ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(content: Text("Erreur : $e")),
                                       );
                                     }

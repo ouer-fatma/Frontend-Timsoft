@@ -23,4 +23,6 @@ class StorageService {
         utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
     return jsonDecode(payload);
   }
+  
 }
+

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 class DimensionService {
   final String baseUrl = 'http://localhost:3000';
 
+
   Future<List<Map<String, String>>> getDimensions(String codeArticle) async {
     if (codeArticle.isEmpty) {
       throw Exception("Code article vide.");

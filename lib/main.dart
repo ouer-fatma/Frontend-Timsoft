@@ -15,6 +15,8 @@ import 'package:project/screens/auth/splash_screen.dart';
 import 'package:project/services/storage_service.dart';
 import 'package:project/widgets/login_side_panel.dart';
 import 'package:project/widgets/register_side_panel.dart';
+import 'package:project/screens/admin/create_magasinier_screen.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
