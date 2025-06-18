@@ -28,7 +28,6 @@ class _FamillesScreenState extends State<FamillesScreen> {
     'CHE': 'Chemises',
     'CHEMISES': 'Chemises',
     'COC': 'Cocooning',
-    'COS': 'Costume',
     'COM': 'Combinaisons',
     'DEN': 'Denim',
     'ENS': 'Ensembles',
@@ -73,10 +72,12 @@ class _FamillesScreenState extends State<FamillesScreen> {
 
   Future<void> fetchFamilles() async {
     try {
-      final response = await http.get(Uri.parse('http://localhost:3000/articles/familles'));
+      final response =
+          await http.get(Uri.parse('http://localhost:3000/articles/familles'));
       if (response.statusCode == 200) {
         final raw = List<String>.from(json.decode(response.body));
-        familles = raw.where((f) => allowedFamilles.contains(f.trim())).toList();
+        familles =
+            raw.where((f) => allowedFamilles.contains(f.trim())).toList();
         if (selectedFamille != null) fetchCategories(selectedFamille!);
       }
     } catch (e) {
@@ -94,7 +95,8 @@ class _FamillesScreenState extends State<FamillesScreen> {
     });
 
     try {
-      final response = await http.get(Uri.parse('http://localhost:3000/articles/categories/$famille'));
+      final response = await http
+          .get(Uri.parse('http://localhost:3000/articles/categories/$famille'));
       if (response.statusCode == 200) {
         categories = List<String>.from(json.decode(response.body));
       }
@@ -113,7 +115,8 @@ class _FamillesScreenState extends State<FamillesScreen> {
     });
 
     try {
-      final response = await http.get(Uri.parse('http://localhost:3000/articles/categorie/$categorie'));
+      final response = await http.get(
+          Uri.parse('http://localhost:3000/articles/categorie/$categorie'));
       if (response.statusCode == 200) {
         articles = json.decode(response.body);
       }
@@ -262,11 +265,13 @@ class _FamillesScreenState extends State<FamillesScreen> {
                       article['GA_IMAGE_URL'] ?? '',
                       fit: BoxFit.cover,
                       width: double.infinity,
-                      errorBuilder: (c, e, s) => Center(child: Icon(Icons.image_not_supported)),
+                      errorBuilder: (c, e, s) =>
+                          Center(child: Icon(Icons.image_not_supported)),
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     child: Text(
                       article['GA_LIBELLE'] ?? 'Sans libellé',
                       style: TextStyle(fontWeight: FontWeight.w600),

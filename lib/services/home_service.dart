@@ -169,4 +169,29 @@ class ArticleService {
       throw Exception("Erreur suppression: ${response.body}");
     }
   }
+
+  Future<List<Map<String, dynamic>>> getPromotedArticles() async {
+    final response = await http.get(Uri.parse('${_baseUrl}/promoted'));
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return List<Map<String, dynamic>>.from(data);
+    } else {
+      throw Exception(
+          'Erreur récupération des promotions: ${response.statusCode}');
+    }
+  }
+}
+
+Future<void> createRemise(Map<String, dynamic> remiseData) async {
+  final String baseUrl = '${AppConfig.baseUrl}/articles';
+  final response = await http.post(
+    Uri.parse('$baseUrl/remise'),
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode(remiseData),
+  );
+
+  if (response.statusCode != 201) {
+    throw Exception('Erreur création remise: ${response.body}');
+  }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:project/screens/admin/promotions_screen.dart';
 import 'package:project/screens/admin/users_screen.dart';
 import 'admin_home_screen.dart';
 import 'admin_home_page.dart';
@@ -36,7 +37,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     const UsersScreen(),
     _buildPlaceholder("Retours"),
-    _buildPlaceholder("Promotions"),
+    const PromotionsScreen(),
     _buildPlaceholder("Statistiques"), // ✅ This line was missing!
   ];
 

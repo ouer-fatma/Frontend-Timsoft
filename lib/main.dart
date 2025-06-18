@@ -1,4 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:project/screens/User/client_promotions_screen.dart';
+import 'package:project/services/home_service.dart';
 import 'firebase_options.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,8 +8,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:project/config.dart';
 import 'package:project/screens/User/article_detail_screen.dart';
 import 'package:project/screens/admin/admin_home_screen.dart';
-import 'package:project/screens/auth/Create-account_screen.dart';
-import 'package:project/screens/auth/Login_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:animated_text_kit/animated_text_kit.dart';
@@ -204,10 +204,37 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         ),
                         Row(
                           children: [
+                            IconButton(
+                              icon: const Icon(Icons.local_offer_outlined,
+                                  color: Colors.red),
+                              tooltip: "Voir les promotions",
+                              onPressed: () async {
+                                try {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const ClientPromotionsScreen(),
+                                    ),
+                                  );
+                                } catch (e) {
+                                  print("Erreur chargement promotions: $e");
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          "Impossible de charger les promotions."),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+
+                            const SizedBox(width: 8),
+
+                            // 🧑 Connexion
                             TextButton(
                               onPressed: () {
-                                _openLoginModal(
-                                    context); // 👈 utilise cette fonction
+                                _openLoginModal(context);
                               },
                               child: const Text(
                                 'Se connecter',
@@ -215,6 +242,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
+
+                            // 📝 Inscription
                             OutlinedButton(
                               onPressed: () {
                                 showDialog(
@@ -224,8 +253,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                     insetPadding: EdgeInsets.zero,
                                     child: Align(
                                       alignment: Alignment.centerRight,
-                                      child:
-                                          RegisterSidePanel(), // 👈 même widget utilisé ailleurs
+                                      child: RegisterSidePanel(),
                                     ),
                                   ),
                                 );
@@ -245,7 +273,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                               ),
                             ),
                           ],
-                        )
+                        ),
                       ],
                     ),
                   ),
