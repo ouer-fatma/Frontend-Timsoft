@@ -42,88 +42,113 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
-  void showRetourDialog(
-    String articleCode,
-    int maxQty,
-    String depot,
-    String clientCode,
-  ) {
-    final _qtyController = TextEditingController();
-    String selectedMode = 'remboursement';
+ void showRetourDialog(
+  String articleCode,
+  int maxQty,
+  String depot,
+  String clientCode,
+) {
+  final _qtyController = TextEditingController();
+  String selectedMode = 'magasin';
 
-    showDialog(
-      context: context,
-      builder: (_) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) => AlertDialog(
-            title: const Text("Retourner l’article"),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text("Quantité à retourner (max $maxQty)"),
-                TextField(
-                  controller: _qtyController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(hintText: "1"),
+  showDialog(
+  context: context,
+  builder: (_) {
+    return StatefulBuilder(
+      builder: (context, setStateDialog) => AlertDialog(
+        title: const Text("Retourner l’article"),
+        content: SingleChildScrollView( // ✅ Empêche l'overflow
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Quantité à retourner (max $maxQty)"),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _qtyController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  hintText: "1",
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12),
                 ),
-                const SizedBox(height: 12),
-                DropdownButton<String>(
-                  value: selectedMode,
-                  isExpanded: true,
-                  onChanged: (value) {
-                    if (value != null) {
-                      setStateDialog(() => selectedMode = value);
-                    }
-                  },
-                  items: ['remboursement', 'échange'].map((mode) {
-                    return DropdownMenuItem(
-                      value: mode,
-                      child: Text(mode),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Annuler"),
               ),
-              ElevatedButton(
-                onPressed: () async {
-                  final qty = int.tryParse(_qtyController.text.trim());
-                  if (qty == null || qty <= 0 || qty > maxQty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Quantité invalide")),
-                    );
-                    return;
-                  }
-                  Navigator.pop(context);
-                  try {
-                    await _retourService.createRetour(
-                      article: articleCode,
-                      quantite: qty,
-                      depot: depot,
-                      utilisateur: clientCode,
-                      modeRetour: selectedMode,
-                    );
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("✅ Retour enregistré.")),
-                    );
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("❌ Erreur : $e")),
-                    );
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: selectedMode,
+                decoration: const InputDecoration(
+                  labelText: "Mode de retour",
+                  border: OutlineInputBorder(),
+                ),
+                isExpanded: true,
+                onChanged: (value) {
+                  if (value != null) {
+                    setStateDialog(() => selectedMode = value);
                   }
                 },
-                child: const Text("Confirmer"),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'magasin',
+                    child: Text("🏪 En magasin"),
+                  ),
+                  DropdownMenuItem(
+                    value: 'courriel',
+                    child: Text("📦 Par courrier"),
+                  ),
+                ],
               ),
             ],
           ),
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Annuler"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final qty = int.tryParse(_qtyController.text.trim());
+
+              if (qty == null || qty <= 0 || qty > maxQty) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Quantité invalide")),
+                  );
+                }
+                return;
+              }
+
+              if (context.mounted) Navigator.pop(context);
+
+              try {
+                await _retourService.createRetour(
+                  article: articleCode.trim(),
+                  quantite: qty,
+                  depot: depot.trim(),
+                  utilisateur: clientCode.trim(),
+                  modeRetour: selectedMode.trim(),
+                );
+
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("✅ Retour enregistré.")),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("❌ Erreur : $e")),
+                  );
+                }
+              }
+            },
+            child: const Text("Confirmer"),
+          ),
+        ],
+      ),
     );
-  }
+  },
+);
+}
 
   @override
   Widget build(BuildContext context) {
@@ -165,37 +190,48 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
-                  ...lignes.map((ligne) => Card(
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        child: ListTile(
-                          title: Text(ligne['GA_LIBELLE'] ?? 'Article'),
-                          subtitle: Text(
-                            "x ${ligne['GL_QTEFACT']} | ${ligne['GL_ARTICLE']} | ${ligne['GL_CODESDIM'] ?? ''}",
-                          ),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                "€${ligne['GL_TOTALLIGNE']?.toStringAsFixed(2) ?? '0.00'}",
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 4),
-                              ElevatedButton(
-                                onPressed: () {
-                                  showRetourDialog(
-                                    ligne['GL_ARTICLE'],
-                                    ligne['GL_QTEFACT'].toInt(),
-                                    depotCode,
-                                    clientCode,
-                                  );
-                                },
-                                child: const Text("Retourner"),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )),
+...lignes.map((ligne) => Card(
+  margin: const EdgeInsets.symmetric(vertical: 6),
+  child: ListTile(
+    title: Text(ligne['GA_LIBELLE'] ?? 'Article'),
+    subtitle: Text(
+      "x ${ligne['GL_QTEFACT']} | ${ligne['GL_ARTICLE']} | ${ligne['GL_CODESDIM'] ?? ''}",
+    ),
+    trailing: Padding(
+      padding: const EdgeInsets.only(top: 4.0, bottom: 4.0), // évite l'overflow
+      child: Column(
+        mainAxisSize: MainAxisSize.min, // empêche l’expansion verticale inutile
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            "€${ligne['GL_TOTALLIGNE']?.toStringAsFixed(2) ?? '0.00'}",
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            height: 30,
+            child: ElevatedButton(
+              onPressed: () {
+                showRetourDialog(
+                  ligne['GL_ARTICLE'],
+                  ligne['GL_QTEFACT'].toInt(),
+                  depotCode,
+                  clientCode,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                textStyle: const TextStyle(fontSize: 11),
+              ),
+              child: const Text("Retourner"),
+            ),
+          ),
+        ],
+      ),
+    ),
+  ),
+))
+,
                   const Divider(height: 30),
                   Align(
                     alignment: Alignment.centerRight,

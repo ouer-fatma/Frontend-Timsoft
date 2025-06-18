@@ -12,17 +12,20 @@ class RetourService {
     required String utilisateur,
     required String modeRetour,
   }) async {
-    final url = Uri.parse('$baseUrl/retours');
+    final url = Uri.parse('$baseUrl/retour');
 
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
-        'article': article,
-        'quantite': quantite,
-        'depot': depot,
-        'utilisateur': utilisateur,
-        'modeRetour': modeRetour,
+       print({
+  'article': article,
+  'quantite': quantite,
+  'depot': depot,
+  'utilisateur': utilisateur,
+  'modeRetour': modeRetour,
+})
+
       }),
     );
 
