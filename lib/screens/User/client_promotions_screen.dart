@@ -23,11 +23,13 @@ class _ClientPromotionsScreenState extends State<ClientPromotionsScreen> {
     try {
       final fetched = await ArticleService().getPromotedArticles();
       promotions = fetched.where((a) {
-        final r = a['remise'];
-        final prixAvant = a['prix_base'];
-        final prixApres = a['prix_remise'];
-        return r != null &&
-            r['pourcentage'] != null &&
+        final remise = a['remise'];
+        final prixAvant =
+            remise?['prix_avant'] ?? a['prix_base'] ?? a['GA_PVTTC'];
+        final prixApres = remise?['prix_apres'] ?? a['prix_remise'];
+
+        return remise != null &&
+            remise['pourcentage'] != null &&
             prixAvant != null &&
             prixApres != null &&
             prixAvant > prixApres;
@@ -59,8 +61,13 @@ class _ClientPromotionsScreenState extends State<ClientPromotionsScreen> {
               itemBuilder: (context, index) {
                 final article = promotions[index];
                 final remise = article['remise'];
-                final prixAvant = remise['prix_avant'] ?? 0.0;
-                final prixApres = remise['prix_apres'] ?? 0.0;
+                final prixAvant = remise?['prix_avant'] ??
+                    article['prix_base'] ??
+                    article['GA_PVTTC'] ??
+                    0.0;
+
+                final prixApres =
+                    remise?['prix_apres'] ?? article['prix_remise'] ?? 0.0;
                 final pourcentage = remise['pourcentage'] ?? 0;
 
                 return Card(

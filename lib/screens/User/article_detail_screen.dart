@@ -39,12 +39,13 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   Future<void> loadUserData() async {
     final userData = await StorageService.getUserData();
     setState(() {
-      codeTiers = userData['codeTiers'];
+      codeTiers = userData?['codeTiers'] ?? "GUEST"; // ✅ null-safe
     });
   }
 
   Future<void> loadDimensions() async {
-    final codeArticle = widget.article['GA_CODEARTICLE1'] ?? widget.article['GA_CODEARTICLE'];
+    final codeArticle =
+        widget.article['GA_CODEARTICLE1'] ?? widget.article['GA_CODEARTICLE'];
     if (codeArticle == null) {
       print("❌ Aucun code article pour charger les dimensions.");
       setState(() => _isLoadingDimensions = false);
@@ -67,7 +68,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     if (selectedDim1 == null || selectedDim2 == null) return;
 
     setState(() => _isLoadingQuantite = true);
-    final codeArticle = widget.article['GA_CODEARTICLE1'] ?? widget.article['GA_CODEARTICLE'];
+    final codeArticle =
+        widget.article['GA_CODEARTICLE1'] ?? widget.article['GA_CODEARTICLE'];
     final uri = Uri.parse(
       'http://localhost:3000/articles/$codeArticle/details?dim1=$selectedDim1&dim2=$selectedDim2',
     );
@@ -123,7 +125,8 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                         widget.article['GA_IMAGE_URL'],
                         fit: BoxFit.cover,
                         height: 400,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 100),
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.broken_image, size: 100),
                       )
                     : const Icon(Icons.image_not_supported, size: 100),
               ),
@@ -134,13 +137,16 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.article['GA_LIBELLE'] ?? '', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  Text(widget.article['GA_LIBELLE'] ?? '',
+                      style: const TextStyle(
+                          fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
-                  Text("Code: ${widget.article['GA_CODEARTICLE1'] ?? widget.article['GA_CODEARTICLE']}"),
+                  Text(
+                      "Code: ${widget.article['GA_CODEARTICLE1'] ?? widget.article['GA_CODEARTICLE']}"),
                   const SizedBox(height: 8),
-                  Text("Prix TTC: €${widget.article['GA_PVTTC']}", style: const TextStyle(fontSize: 18)),
+                  Text("Prix TTC: €${widget.article['GA_PVTTC']}",
+                      style: const TextStyle(fontSize: 18)),
                   const SizedBox(height: 16),
-
                   DropdownButton<String>(
                     hint: const Text("Sélectionnez la taille"),
                     value: selectedDim1,
@@ -159,7 +165,6 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                     },
                   ),
                   const SizedBox(height: 12),
-
                   DropdownButton<String>(
                     hint: const Text("Sélectionnez la couleur"),
                     value: selectedDim2,
@@ -178,14 +183,12 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                     },
                   ),
                   const SizedBox(height: 12),
-
                   if (_isLoadingQuantite)
                     const CircularProgressIndicator()
                   else if (quantiteDisponible != null)
-                    Text("Quantité disponible : $quantiteDisponible", style: const TextStyle(color: Colors.green)),
-
+                    Text("Quantité disponible : $quantiteDisponible",
+                        style: const TextStyle(color: Colors.green)),
                   const SizedBox(height: 12),
-
                   Row(
                     children: [
                       const Text("Quantité : "),
@@ -199,10 +202,12 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                               }
                             : null,
                       ),
-                      Text('$quantiteSouhaitee', style: const TextStyle(fontSize: 18)),
+                      Text('$quantiteSouhaitee',
+                          style: const TextStyle(fontSize: 18)),
                       IconButton(
                         icon: const Icon(Icons.add),
-                        onPressed: (quantiteDisponible != null && quantiteSouhaitee < quantiteDisponible!)
+                        onPressed: (quantiteDisponible != null &&
+                                quantiteSouhaitee < quantiteDisponible!)
                             ? () {
                                 setState(() {
                                   quantiteSouhaitee++;
@@ -213,49 +218,56 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-
-                  codeTiers != null
-                      ? ElevatedButton.icon(
-                          onPressed: (_isLoading ||
-    quantiteDisponible == null ||
-    quantiteDisponible == 0 ||
-    selectedDim1 == null ||
-    selectedDim2 == null ||
-    quantiteSouhaitee > quantiteDisponible!)
-  ? null
-  : () async {
-      setState(() => _isLoading = true);
-      try {
-        await _panierService.ajouterAuPanier(
-          codeTiers: codeTiers!,
-          codeArticle: widget.article['GA_CODEARTICLE1'] ?? widget.article['GA_CODEARTICLE'],
-          quantite: quantiteSouhaitee.toDouble(),
-          dim1Libelle: selectedDim1!,
-          dim2Libelle: selectedDim2!,
-          grilleDim1: widget.article['GA_GRILLEDIM1'],
-          grilleDim2: widget.article['GA_GRILLEDIM2'],
-        );
-                                    if (!mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text("Ajouté au panier !")),
-                                    );
-                                  } catch (e) {
-                                    if (!mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text("Erreur: $e")),
-                                    );
-                                  } finally {
-                                    setState(() => _isLoading = false);
-                                  }
-                                },
-                          icon: const Icon(Icons.add_shopping_cart),
-                          label: const Text("Ajouter au panier"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF3B5BDB),
-                            foregroundColor: Colors.white,
-                          ),
-                        )
-                      : const Text("Connectez-vous pour ajouter au panier", style: TextStyle(color: Colors.grey)),
+                  ElevatedButton.icon(
+                    onPressed: (_isLoading ||
+                            quantiteDisponible == null ||
+                            quantiteDisponible == 0 ||
+                            selectedDim1 == null ||
+                            selectedDim2 == null ||
+                            quantiteSouhaitee > quantiteDisponible!)
+                        ? null
+                        : () async {
+                            setState(() => _isLoading = true);
+                            try {
+                              await _panierService.ajouterAuPanier(
+                                codeTiers: codeTiers ?? "GUEST",
+                                codeArticle:
+                                    widget.article['GA_CODEARTICLE1'] ??
+                                        widget.article['GA_CODEARTICLE'],
+                                quantite: quantiteSouhaitee.toDouble(),
+                                dim1Libelle: selectedDim1!,
+                                dim2Libelle: selectedDim2!,
+                                grilleDim1: widget.article['GA_GRILLEDIM1'],
+                                grilleDim2: widget.article['GA_GRILLEDIM2'],
+                              );
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text("Ajouté au panier !")),
+                              );
+                            } catch (e) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text("Erreur: $e")),
+                              );
+                            } finally {
+                              setState(() => _isLoading = false);
+                            }
+                          },
+                    icon: const Icon(Icons.add_shopping_cart),
+                    label: const Text("Ajouter au panier"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B5BDB),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  if (codeTiers == "GUEST") ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Connectez-vous pour finaliser votre commande plus tard.",
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
                 ],
               ),
             ),

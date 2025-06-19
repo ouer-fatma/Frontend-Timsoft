@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:project/services/home_service.dart';
 
 class PromotionsScreen extends StatefulWidget {
@@ -90,7 +93,20 @@ class _PromotionsScreenState extends State<PromotionsScreen> {
                   "MLR_DATEPIECE": DateTime.now().toIso8601String(),
                 };
 
-                await createRemise(remiseData);
+                await ArticleService().createRemise(remiseData);
+
+                // ✅ Envoi de la notification à tous les clients
+                await http.post(
+                  Uri.parse("http://localhost:3000/notifications"),
+                  headers: {'Content-Type': 'application/json'},
+                  body: jsonEncode({
+                    "codeTiers": "C001", // ou null si notification broadcast
+                    "title": "📢 Nouvelle promo sur ${article["libelle"]}",
+                    "message":
+                        "Profitez de ${pourcentageCtrl.text}% de réduction !"
+                  }),
+                );
+
                 if (context.mounted) {
                   Navigator.pop(context);
                   fetchPromos();
@@ -101,7 +117,7 @@ class _PromotionsScreenState extends State<PromotionsScreen> {
               }
             },
             child: const Text("Valider"),
-          ),
+          )
         ],
       ),
     );

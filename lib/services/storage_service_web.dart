@@ -15,12 +15,18 @@ class StorageService {
     html.window.localStorage.remove('token');
   }
 
-  static Future<Map<String, dynamic>> getUserData() async {
+  static Future<Map<String, dynamic>?> getUserData() async {
     final token = await getToken();
-    if (token == null) throw Exception('Token non trouvé.');
-    final parts = token.split('.');
-    final payload =
-        utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
-    return jsonDecode(payload);
+    if (token == null) return null;
+
+    try {
+      final parts = token.split('.');
+      final payload =
+          utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
+      return jsonDecode(payload);
+    } catch (e) {
+      print('Erreur décodage JWT : $e');
+      return null;
+    }
   }
 }

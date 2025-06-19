@@ -26,7 +26,7 @@ class OrderService {
     if (token == null) throw Exception("Token introuvable");
 
     final payload = await StorageService.getUserData();
-    final codeTiers = payload['codeTiers'];
+    final codeTiers = payload?['codeTiers'] ?? 'GUEST';
 
     final response = await http.get(
       Uri.parse('$baseUrl/client/$codeTiers'),
