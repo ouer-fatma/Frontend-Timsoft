@@ -192,4 +192,106 @@ class AuthService {
     );
     await googleSignIn.signOut();
   }
+
+
+  Future<Map<String, dynamic>> forgotPassword({required String email}) async {
+  final url = Uri.parse('$baseUrl/forgot-password');
+
+  try {
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+
+    return {
+      'status': response.statusCode,
+      'body': jsonDecode(response.body),
+    };
+  } catch (e) {
+    return {
+      'status': 500,
+      'body': {'message': 'Erreur serveur ou réseau', 'error': e.toString()},
+    };
+  }
+}
+
+Future<Map<String, dynamic>> resetPassword({
+  required String token,
+  required String nouveauMotDePasse,
+}) async {
+  final url = Uri.parse('$baseUrl/reset-password');
+
+  try {
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'token': token,
+        'nouveauMotDePasse': nouveauMotDePasse,
+      }),
+    );
+
+    return {
+      'status': response.statusCode,
+      'body': jsonDecode(response.body),
+    };
+  } catch (e) {
+    return {
+      'status': 500,
+      'body': {'message': 'Erreur serveur ou réseau', 'error': e.toString()},
+    };
+  }
+}
+
+   
+Future<bool> creerCompteCommercial({  // <- anciennement creerCompteMagasinierParDepot
+  required String email,
+  required String password,
+  required int etablissement,
+
+}) async {
+  final url = Uri.parse('$baseUrl/creer-compte-commercial');
+  final token = await StorageService.getToken();
+
+  final response = await http.post(
+    url,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+    body: jsonEncode({
+      'email': email,
+      'motDePasse': password,
+      'etablissement': etablissement,
+    }),
+  );
+
+  if (response.statusCode == 201) {
+    return true;
+  } else {
+    final msg = jsonDecode(response.body)['message'];
+    throw Exception(msg);
+  }
+}
+Future<List<String>> fetchDepots() async {
+  final url = Uri.parse('$baseUrl/depots');
+  final token = await StorageService.getToken();
+
+  final response = await http.get(
+    url,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token'
+    },
+  );
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    return List<String>.from(data.map((d) => d['GCL_ETABLISSEMENT'].toString()));
+  } else {
+    throw Exception('Impossible de récupérer les dépôts');
+  }
+}
+
 }

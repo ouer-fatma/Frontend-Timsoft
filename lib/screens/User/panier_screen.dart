@@ -20,6 +20,9 @@ class _PanierScreenState extends State<PanierScreen> {
   bool hasFetched = false;
   bool isRetrait = false;
 
+  List<Map<String, dynamic>> depots = [];
+  String? selectedDepot;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -31,128 +34,140 @@ class _PanierScreenState extends State<PanierScreen> {
 
   Future<void> _fetchPanier() async {
     setState(() => isLoading = true);
-    final stopwatch = Stopwatch()..start();
-
     try {
-      final panierData = await _panierService.getPanier(codeTiers: widget.codeTiers);
-      final elapsed = stopwatch.elapsedMilliseconds;
-      if (elapsed < 300) {
-        await Future.delayed(Duration(milliseconds: 300 - elapsed));
+      String codeTiersFinal;
+
+      // Récupère automatiquement codeTiers du token si null
+      if (widget.codeTiers.trim().isEmpty) {
+        final token = await StorageService.getToken();
+        if (token != null && !JwtDecoder.isExpired(token)) {
+          codeTiersFinal = JwtDecoder.decode(token)['codeTiers'] ?? 'GUEST';
+        } else {
+          codeTiersFinal = 'GUEST';
+        }
+      } else {
+        codeTiersFinal = widget.codeTiers.trim().toUpperCase();
       }
+
+      print("🔄 Chargement du panier pour $codeTiersFinal");
+
+      final panierData =
+          await _panierService.getPanier(codeTiers: codeTiersFinal);
+
+      print("✅ Réponse panier : ${jsonEncode(panierData)}");
+
       setState(() {
         lignes = panierData;
         isLoading = false;
       });
-    } catch (e) {
+    } catch (e, stack) {
+      print("❌ Erreur dans _fetchPanier: $e");
+      print(stack);
       setState(() => isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur: $e")),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Erreur: $e")));
+    }
+  }
+
+  Future<void> _fetchDepots() async {
+    try {
+      final res = await http
+          .get(Uri.parse("http://localhost:3000/click-collect/depots"));
+      if (res.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(res.body);
+        setState(() => depots = data.cast<Map<String, dynamic>>());
+      } else {
+        print("Erreur code ${res.statusCode} : ${res.body}");
+      }
+    } catch (e) {
+      print("Erreur chargement dépôts: $e");
     }
   }
 
   Future<void> _supprimerArticle(String codeArticle, String codeSDIM) async {
     try {
-      await _panierService.supprimerDuPanier(
-        widget.codeTiers,
-        codeArticle,
+      final token = await StorageService.getToken();
+      final isGuest = token == null || JwtDecoder.isExpired(token);
+
+      await _panierService.retirerDuPanier(
+        codeTiers: isGuest ? 'GUEST' : widget.codeTiers,
+        codeArticle: codeArticle,
         codesdim: codeSDIM,
       );
 
-      setState(() {
-        lignes.removeWhere((ligne) =>
-            ligne['GL_ARTICLE'] == codeArticle &&
-            ligne['GL_CODESDIM'] == codeSDIM);
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Article supprimé du panier.")),
-      );
+      setState(() => lignes.removeWhere((l) =>
+          l['GL_ARTICLE'] == codeArticle && l['GL_CODESDIM'] == codeSDIM));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("Article supprimé.")));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur suppression : $e")),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Erreur suppression : $e")));
     }
   }
 
   Future<void> _validerCommande() async {
-  final token = await StorageService.getToken();
-  if (token == null || JwtDecoder.isExpired(token)) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Authentification invalide.")),
-    );
-    return;
-  }
-
-  final decoded = JwtDecoder.decode(token);
-  final codeTiers = decoded['codeTiers'];
-  if (codeTiers == null) return;
-
-  try {
-    final numeroRes = await http.get(
-      Uri.parse("http://localhost:3000/orders/next-numero"),
-      headers: {"Authorization": "Bearer $token"},
-    );
-
-    if (numeroRes.statusCode != 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Erreur génération numéro de commande.")),
-      );
+    final token = await StorageService.getToken();
+    if (token == null || JwtDecoder.isExpired(token)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Veuillez vous connecter pour valider.")));
       return;
     }
 
-    final bodyDecoded = jsonDecode(numeroRes.body);
-    final numero = bodyDecoded['nextNumero'];
+    final decoded = JwtDecoder.decode(token);
+    final codeTiers = decoded['codeTiers'];
+    if (codeTiers == null) return;
 
-    if (lignes.isEmpty) {
+    if (isRetrait && selectedDepot == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Panier vide ou invalide.")),
-      );
+          const SnackBar(content: Text("Veuillez choisir un dépôt.")));
       return;
     }
 
-    final now = DateTime.now().toUtc().toIso8601String();
-
-    final body = {
-      "GP_NATUREPIECEG": "CC", // ✅ Correct nature pièce commande
-      "GP_SOUCHE": "04",
-      "GP_NUMERO": numero,
-      "GP_INDICEG": 1,
-      "GP_DATECREATION": now,
-      "GP_LIBRETIERS1": isRetrait ? "S01" : "LOC",
-      "GP_DEPOT": isRetrait ? "113" : null
-    };
-
-    final response = await http.post(
-      Uri.parse("http://localhost:3000/orders"),
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token"
-      },
-      body: jsonEncode(body),
-    );
-
-    if (response.statusCode == 201) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Commande créée avec succès.")),
+    try {
+      final res = await http.get(
+        Uri.parse("http://localhost:3000/orders/next-numero"),
+        headers: {"Authorization": "Bearer $token"},
       );
-      setState(() {
-        lignes.clear();
-      });
-      await _fetchPanier(); // 🆕 Optionnel : refresh l'écran panier
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Échec commande: ${response.body}")),
+      if (res.statusCode != 200) throw Exception("Erreur numéro");
+
+      final numero = jsonDecode(res.body)['nextNumero'];
+      final now = DateTime.now().toUtc().toIso8601String();
+
+      final body = {
+        "GP_NATUREPIECEG": "CC",
+        "GP_SOUCHE": "04",
+        "GP_NUMERO": numero,
+        "GP_INDICEG": 1,
+        "GP_DATECREATION": now,
+        "GP_LIBRETIERS1": isRetrait ? "S01" : "LOC",
+        "GP_DEPOT": isRetrait ? selectedDepot : null
+      };
+
+      final postRes = await http.post(
+        Uri.parse("http://localhost:3000/orders"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token"
+        },
+        body: jsonEncode(body),
       );
+
+      if (postRes.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✅ Commande enregistrée avec succès.")),
+        );
+        setState(() => lignes.clear());
+        _fetchPanier();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erreur: ${postRes.body}")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Erreur: $e")));
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("❌ Erreur: $e")),
-    );
   }
-}
-
-
 
   double get total =>
       lignes.fold(0.0, (sum, l) => sum + (l['TotalLigne'] ?? 0));
@@ -174,29 +189,22 @@ class _PanierScreenState extends State<PanierScreen> {
                       child: ListView.builder(
                         itemCount: lignes.length,
                         itemBuilder: (context, index) {
-                          final ligne = lignes[index];
-                          final dim1 = ligne['dim1Libelle'] ?? '-';
-                          final dim2 = ligne['dim2Libelle'] ?? '-';
-
+                          final l = lignes[index];
                           return ListTile(
-                            title: Text(ligne['GA_LIBELLE'] ?? 'Sans libellé'),
+                            title: Text(l['GA_LIBELLE'] ?? ''),
                             subtitle: Text(
-                              "Quantité: ${ligne['GL_QTEFACT']} | Prix: €${ligne['GA_PVTTC']}\n"
-                              "Taille: $dim1 | Couleur: $dim2",
-                            ),
+                                "Quantité: ${l['GL_QTEFACT']} | Prix: €${l['GA_PVTTC']}\n"
+                                "Taille: ${l['dim1Libelle'] ?? '-'} | Couleur: ${l['dim2Libelle'] ?? '-'}"),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  "€${ligne['TotalLigne'].toStringAsFixed(2)}",
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                ),
+                                    "€${(l['TotalLigne'] ?? 0).toStringAsFixed(2)}"),
                                 IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  icon: const Icon(Icons.delete,
+                                      color: Colors.red),
                                   onPressed: () => _supprimerArticle(
-                                    ligne['GL_ARTICLE'],
-                                    ligne['GL_CODESDIM'],
-                                  ),
+                                      l['GL_ARTICLE'], l['GL_CODESDIM']),
                                 ),
                               ],
                             ),
@@ -205,36 +213,68 @@ class _PanierScreenState extends State<PanierScreen> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.all(16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           SwitchListTile(
                             title: const Text("Retrait en dépôt"),
                             value: isRetrait,
-                            onChanged: (val) => setState(() => isRetrait = val),
+                            onChanged: (val) {
+                              setState(() {
+                                isRetrait = val;
+                                if (val) {
+                                  _fetchDepots();
+                                  selectedDepot = null;
+                                }
+                              });
+                            },
                           ),
+                          if (isRetrait)
+                            depots.isNotEmpty
+                                ? DropdownButtonFormField<String>(
+                                    value: depots.any(
+                                            (d) => d['code'] == selectedDepot)
+                                        ? selectedDepot
+                                        : null,
+                                    decoration: const InputDecoration(
+                                        labelText: "Choisissez un dépôt"),
+                                    items: depots.map((depot) {
+                                      final code = depot['code'];
+                                      final label =
+                                          depot['libelle'] ?? 'Dépôt inconnu';
+                                      return DropdownMenuItem<String>(
+                                        value: code,
+                                        child: Text(label),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) =>
+                                        setState(() => selectedDepot = val),
+                                  )
+                                : const Text("Aucun dépôt disponible."),
+                          const SizedBox(height: 12),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                "Total panier:",
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                "€${total.toStringAsFixed(2)}",
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
+                              const Text("Total panier:",
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold)),
+                              Text("€${total.toStringAsFixed(2)}",
+                                  style: const TextStyle(fontSize: 18)),
                             ],
                           ),
                           const SizedBox(height: 16),
                           ElevatedButton(
-                            onPressed: _validerCommande,
+                            onPressed: lignes.isEmpty ||
+                                    (isRetrait && selectedDepot == null)
+                                ? null
+                                : _validerCommande,
                             child: const Text("Valider la commande"),
-                          ),
+                          )
                         ],
                       ),
-                    ),
+                    )
                   ],
                 ),
     );

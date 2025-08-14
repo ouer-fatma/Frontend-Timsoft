@@ -1,102 +1,75 @@
 import 'package:flutter/material.dart';
-import 'package:project/services/order_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class MagasinierReturnsScreen extends StatefulWidget {
   const MagasinierReturnsScreen({super.key});
 
   @override
-  State<MagasinierReturnsScreen> createState() =>
-      _MagasinierReturnsScreenState();
+  State<MagasinierReturnsScreen> createState() => _MagasinierReturnsScreenState();
 }
 
 class _MagasinierReturnsScreenState extends State<MagasinierReturnsScreen> {
-  List<Map<String, dynamic>> returns = [];
+  List<Map<String, dynamic>> retours = [];
   bool isLoading = true;
-  String? error;
-  String _formatDate(dynamic rawDate) {
-    if (rawDate == null) return '---';
-    final dt = DateTime.tryParse(rawDate.toString());
-    if (dt == null) return '---';
-    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-  }
 
   @override
   void initState() {
     super.initState();
-    fetchReturns();
+    fetchAllRetours();
   }
 
-  Future<void> fetchReturns() async {
-    setState(() {
-      isLoading = true;
-      error = null;
-    });
-
+  Future<void> fetchAllRetours() async {
     try {
-      final res = await OrderService().fetchReturns();
+      final response = await http.get(Uri.parse('http://localhost:3000/api/retours'));
 
-      // ✅ Sort by date (assuming DATE_RETOUR is in ISO format)
-      res.sort((a, b) {
-        final dateA =
-            DateTime.tryParse(a['DATE_RETOUR'] ?? '') ?? DateTime(1970);
-        final dateB =
-            DateTime.tryParse(b['DATE_RETOUR'] ?? '') ?? DateTime(1970);
-        return dateB.compareTo(dateA);
-      });
-
-      // ✅ Keep only the last 10
-      setState(() {
-        returns = res.take(10).toList();
-        isLoading = false;
-      });
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          retours = List<Map<String, dynamic>>.from(data);
+          isLoading = false;
+        });
+      } else {
+        throw Exception("Erreur serveur");
+      }
     } catch (e) {
-      setState(() {
-        error = e.toString();
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erreur : $e")),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Retours Produits"),
-        backgroundColor: Colors.orange.shade700,
-      ),
+      appBar: AppBar(title: const Text("📦 Retours Clients")),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : error != null
-              ? Center(child: Text("Erreur: $error"))
-              : returns.isEmpty
-                  ? const Center(child: Text("Aucun retour trouvé."))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: returns.length,
-                      itemBuilder: (context, index) {
-                        final r = returns[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 6),
-                          child: ListTile(
-                            leading: const Icon(Icons.replay,
-                                color: Colors.redAccent),
-                            title: Text("Retour #${r['RETURN_ID'] ?? 'N/A'}"),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("Client: ${r['TIERS'] ?? '---'}"),
-                                Text("Date: ${_formatDate(r['DATE_RETOUR'])}"),
-                                Text("Motif: ${r['MOTIF'] ?? 'Non précisé'}"),
-                              ],
-                            ),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () {
-                              // TODO: Navigate to detailed return view
-                            },
-                          ),
-                        );
-                      },
-                    ),
+          : retours.isEmpty
+              ? const Center(child: Text("Aucun retour enregistré."))
+              : ListView.builder(
+                  itemCount: retours.length,
+                  itemBuilder: (context, index) {
+                    final retour = retours[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: ListTile(
+                        title: Text("Retour N°: ${retour['GP_NUMERO']}"),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("Client: ${retour['GP_TIERS']}"),
+                            Text("Date: ${retour['GP_DATEPIECE']}"),
+                            Text("Article: ${retour['GL_ARTICLE']}"),
+                            Text("Quantité: ${retour['GL_QTEFACT']}"),
+                            Text("Dépôt: ${retour['GL_DEPOT']}"),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

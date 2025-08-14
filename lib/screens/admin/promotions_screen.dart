@@ -1,8 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:project/services/home_service.dart';
+import 'package:project/screens/admin/article_promotion_screen.dart';
+import 'package:project/screens/admin/category_promotion_screen.dart';
+import 'package:project/services/promotion_service.dart';
 
 class PromotionsScreen extends StatefulWidget {
   const PromotionsScreen({super.key});
@@ -12,167 +11,177 @@ class PromotionsScreen extends StatefulWidget {
 }
 
 class _PromotionsScreenState extends State<PromotionsScreen> {
-  List<Map<String, dynamic>> allArticles = [];
-  List<Map<String, dynamic>> promotions = [];
-  List<Map<String, dynamic>> nonPromotions = [];
-  bool isLoading = true;
+  final PromotionService _service = PromotionService();
+  List<Promotion> _promotions = [];
+  bool _isLoading = true;
+
+  final _formKey = GlobalKey<FormState>();
+  final _codeController = TextEditingController();
+  final _libelleController = TextEditingController();
+  final _abregeController = TextEditingController();
+  final _imprimableController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    fetchPromos();
+    _loadPromotions();
   }
 
-  Future<void> fetchPromos() async {
-    setState(() => isLoading = true);
+  Future<void> _loadPromotions() async {
+    setState(() => _isLoading = true);
     try {
-      allArticles = await ArticleService().getPromotedArticles();
-      promotions = allArticles
-          .where(
-              (a) => a['remise'] != null && a['remise']['pourcentage'] != null)
-          .toList();
-      nonPromotions = allArticles
-          .where(
-              (a) => a['remise'] == null || a['remise']['pourcentage'] == null)
-          .toList();
+      _promotions = await _service.fetchPromotions();
     } catch (e) {
-      print("Erreur chargement promos: $e");
-    } finally {
-      setState(() => isLoading = false);
+      print('Erreur chargement : $e');
     }
+    setState(() => _isLoading = false);
   }
 
-  void _showRemiseDialog(BuildContext context, Map<String, dynamic> article) {
-    final TextEditingController pourcentageCtrl = TextEditingController();
-    final TextEditingController libelleCtrl = TextEditingController();
-    final TextEditingController typeCtrl = TextEditingController();
+  void _showForm({Promotion? promo}) {
+    if (promo != null) {
+      _codeController.text = promo.gtrTypeRemise;
+      _libelleController.text = promo.libelle;
+      _abregeController.text = promo.abrege;
+      _imprimableController.text = promo.imprimable;
+    } else {
+      _codeController.clear();
+      _libelleController.clear();
+      _abregeController.clear();
+      _imprimableController.clear();
+    }
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Ajouter une promotion"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(article['libelle'] ?? ''),
-            const SizedBox(height: 10),
-            TextField(
-              controller: pourcentageCtrl,
-              decoration: const InputDecoration(labelText: "Pourcentage"),
-              keyboardType: TextInputType.number,
+        title: Text(promo == null ? "Ajouter" : "Modifier"),
+        content: Form(
+          key: _formKey,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextFormField(
+              controller: _codeController,
+              decoration: const InputDecoration(labelText: 'Code'),
+              validator: (v) => v!.isEmpty ? "Requis" : null,
+              enabled: promo == null,
             ),
-            TextField(
-              controller: libelleCtrl,
-              decoration: const InputDecoration(labelText: "Libellé promo"),
+            TextFormField(
+              controller: _libelleController,
+              decoration: const InputDecoration(labelText: 'Libellé'),
+              validator: (v) => v!.isEmpty ? "Requis" : null,
             ),
-            TextField(
-              controller: typeCtrl,
-              decoration: const InputDecoration(labelText: "Type de remise"),
+            TextFormField(
+              controller: _abregeController,
+              decoration: const InputDecoration(labelText: 'Abrégé'),
             ),
-          ],
+            TextFormField(
+              controller: _imprimableController,
+              decoration: const InputDecoration(labelText: 'Imprimable'),
+            ),
+          ]),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Annuler"),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Annuler")),
           ElevatedButton(
             onPressed: () async {
+              if (!_formKey.currentState!.validate()) return;
+              final promoData = Promotion(
+                gtrTypeRemise: _codeController.text,
+                libelle: _libelleController.text,
+                abrege: _abregeController.text,
+                imprimable: _imprimableController.text,
+              );
               try {
-                final remiseData = {
-                  "GA_ARTICLE": article["code"] ?? article["GA_CODEARTICLE"],
-                  "MLR_TYPEREMISE": typeCtrl.text,
-                  "GTR_LIBELLE": libelleCtrl.text,
-                  "MLR_REMISE": double.tryParse(pourcentageCtrl.text) ?? 0,
-                  "MLR_VALEURREMDEV": 0,
-                  "MLR_MONTANTHTDEV": 0,
-                  "MLR_MONTANTTTCDEV": 0,
-                  "MLR_CODECOND": null,
-                  "MLR_totalbase":
-                      article["prix_base"] ?? article["GA_PVTTC"] ?? 0,
-                  "MLR_DATEPIECE": DateTime.now().toIso8601String(),
-                };
-
-                await ArticleService().createRemise(remiseData);
-
-                // ✅ Envoi de la notification à tous les clients
-                await http.post(
-                  Uri.parse("http://localhost:3000/notifications"),
-                  headers: {'Content-Type': 'application/json'},
-                  body: jsonEncode({
-                    "codeTiers": "C001", // ou null si notification broadcast
-                    "title": "📢 Nouvelle promo sur ${article["libelle"]}",
-                    "message":
-                        "Profitez de ${pourcentageCtrl.text}% de réduction !"
-                  }),
-                );
-
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  fetchPromos();
+                if (promo == null) {
+                  await _service.addPromotion(promoData);
+                } else {
+                  await _service.updatePromotion(
+                      promo.gtrTypeRemise, promoData);
                 }
+                Navigator.pop(context);
+                _loadPromotions();
               } catch (e) {
-                print("Erreur ajout promo: $e");
-                if (context.mounted) Navigator.pop(context);
+                print("Erreur ajout/modif : $e");
               }
             },
-            child: const Text("Valider"),
-          )
+            child: const Text("Enregistrer"),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildTile(Map<String, dynamic> article, bool hasRemise) {
-    final remise = article['remise'];
-    final prixAvant = remise?['prix_avant'] ?? article['prix_base'] ?? 0;
-    final prixApres = remise?['prix_apres'] ?? article['prix_remise'] ?? 0;
-    final pourcentage = remise?['pourcentage']?.toStringAsFixed(0) ?? "0";
-
-    return ListTile(
-      tileColor: hasRemise ? Colors.white : Colors.grey.shade100,
-      leading: const Icon(Icons.local_offer_outlined, color: Colors.red),
-      title: Text(article['libelle'] ?? 'Sans libellé'),
-      subtitle: hasRemise
-          ? Text("Avant: €$prixAvant → Après: €$prixApres",
-              style: const TextStyle(color: Colors.green))
-          : const Text("Pas de remise", style: TextStyle(color: Colors.grey)),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (hasRemise)
-            Text("-$pourcentage%", style: const TextStyle(color: Colors.red)),
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
-            tooltip: "Ajouter / Modifier promotion",
-            onPressed: () => _showRemiseDialog(context, article),
-          ),
+  Future<void> _confirmDelete(Promotion promo) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Confirmer la suppression"),
+        content: Text("Supprimer la promotion '${promo.libelle}' ?"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Annuler")),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Supprimer")),
         ],
       ),
     );
+    if (confirmed == true) {
+      await _service.deletePromotion(promo.gtrTypeRemise);
+      _loadPromotions();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Articles en promotion")),
-      body: isLoading
+      appBar: AppBar(
+        title: const Text('Promotions'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.category),
+            tooltip: 'Promos Catégorie',
+            onPressed: () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => CategoryPromotionScreen()));
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.article),
+            tooltip: 'Promos Article',
+            onPressed: () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => ArticlePromotionScreen()));
+            },
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showForm(),
+        child: const Icon(Icons.add),
+      ),
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(12),
-              children: [
-                const Text("Articles en promotion",
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                ...promotions.map((a) => _buildTile(a, true)),
-                const SizedBox(height: 20),
-                const Text("Autres articles",
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                ...nonPromotions.map((a) => _buildTile(a, false)),
-              ],
+          : ListView.separated(
+              itemCount: _promotions.length,
+              separatorBuilder: (_, __) => const Divider(),
+              itemBuilder: (_, index) {
+                final promo = _promotions[index];
+                return ListTile(
+                  title: Text(promo.libelle),
+                  subtitle: Text(
+                      "Code: ${promo.gtrTypeRemise} - Abrégé: ${promo.abrege}"),
+                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                    IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () => _showForm(promo: promo)),
+                    IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () => _confirmDelete(promo)),
+                  ]),
+                );
+              },
             ),
     );
   }

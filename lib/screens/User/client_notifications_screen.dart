@@ -49,15 +49,21 @@ class _ClientNotificationsScreenState extends State<ClientNotificationsScreen> {
       codeTiers = decoded['codeTiers'];
 
       try {
-        final fetched =
-            await NotificationService().fetchNotifications(codeTiers!);
+        final fetched = await NotificationService.fetchAllNotifications();
+
+        final local = NotificationService.getLocalNotifications();
+
         setState(() {
-          notifications = fetched;
+          // Combine local + distantes
+          notifications = [...local, ...fetched];
           isLoading = false;
         });
       } catch (e) {
         print("Erreur fetch notif: $e");
-        setState(() => isLoading = false);
+        setState(() {
+          notifications = NotificationService.getLocalNotifications();
+          isLoading = false;
+        });
       }
     }
   }

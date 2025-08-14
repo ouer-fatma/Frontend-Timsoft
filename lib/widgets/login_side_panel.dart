@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:project/screens/auth/forget_password_page.dart';
 import 'package:project/services/auth_service.dart';
+import 'package:project/services/panier_local_service.dart';
+import 'package:project/services/panier_service.dart';
 import 'package:project/services/storage_service.dart';
 import 'package:project/screens/User/Home_screen.dart';
 import 'package:project/screens/admin/admin_dashboard_screen.dart';
@@ -69,10 +72,13 @@ class _LoginSidePanelState extends State<LoginSidePanel> {
       final token = result['body']['token'];
       await StorageService.clearToken();
       await StorageService.saveToken(token);
+      await transferGuestPanierToUser();
 
       final decoded = JwtDecoder.decode(token);
-      final String role = decoded['role'];
-      final String nom = decoded['nom'];
+      final String role = decoded['role'] ?? 'client';
+      final String nom = decoded.containsKey('nom')
+          ? decoded['nom']
+          : (decoded['T_LIBELLE'] ?? decoded['email'] ?? 'Utilisateur');
 
       Widget screen;
       if (role == 'admin') {
@@ -111,8 +117,10 @@ class _LoginSidePanelState extends State<LoginSidePanel> {
         await StorageService.saveToken(token);
 
         final decoded = JwtDecoder.decode(token);
-        final String role = decoded['role'];
-        final String nom = decoded['nom'];
+        final String role = decoded['role'] ?? 'client';
+        final String nom = decoded.containsKey('nom')
+            ? decoded['nom']
+            : (decoded['T_LIBELLE'] ?? decoded['email'] ?? 'Utilisateur');
 
         Widget screen;
         if (role == 'admin') {
@@ -142,6 +150,33 @@ class _LoginSidePanelState extends State<LoginSidePanel> {
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  Future<void> transferGuestPanierToUser() async {
+    final guestArticles = await PanierLocalService.getArticles();
+
+    if (guestArticles.isEmpty) return;
+
+    final userData = await StorageService.getUserData();
+    final codeTiers = userData?['codeTiers'];
+
+    if (codeTiers == null) return;
+
+    for (final article in guestArticles) {
+      try {
+        await PanierService().ajouterAuPanier(
+          codeTiers: codeTiers,
+          codeArticle: article['GL_ARTICLE'],
+          quantite: (article['GL_QTEFACT'] ?? 1).toDouble(),
+          dim1: article['dim1Libelle'] ?? '',
+          dim2: article['dim2Libelle'] ?? '',
+        );
+      } catch (e) {
+        print("⚠️ Erreur transfert article: $e");
+      }
+    }
+
+    await PanierLocalService.clearPanier();
   }
 
   @override
@@ -223,7 +258,11 @@ class _LoginSidePanelState extends State<LoginSidePanel> {
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: () {
-                        // action
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ForgotPasswordPage()),
+                        );
                       },
                       child: const Text(
                         'Mot de passe oublié ?',

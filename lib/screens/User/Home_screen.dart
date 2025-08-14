@@ -1,5 +1,6 @@
 // ✅ Version modifiée du HomeScreen pour un utilisateur connecté
 import 'package:flutter/material.dart';
+import 'package:project/main.dart';
 import 'package:project/screens/User/article_detail_screen.dart';
 import 'package:project/screens/User/client_notifications_screen.dart';
 import 'package:project/screens/User/user_profile_screen.dart';
@@ -251,134 +252,284 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _showCartSidePanel() async {
-    final panier =
-        await PanierService().getPanier(codeTiers: codeTiers ?? "GUEST");
+  void _showCartSidePanelClient(BuildContext context) async {
+    final userData = await StorageService.getUserData();
+    final codeTiers = userData?['codeTiers'] ?? 'GUEST';
 
-    double total = panier.fold(
-      0.0,
-      (sum, item) => sum + (item['TotalLigne'] ?? 0.0),
-    );
+    final panierService = PanierService();
+    List<dynamic> lignes = [];
+    List<Map<String, dynamic>> depots = [];
+    bool isRetrait = false;
+    String? selectedDepot;
+    bool isLoading = true;
+    bool hasFetched = false;
 
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (_) {
-        return Align(
-          alignment: Alignment.centerRight,
-          child: FractionallySizedBox(
-            widthFactor: 0.5,
-            child: Material(
-              color: Colors.white,
-              elevation: 20,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                bottomLeft: Radius.circular(20),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Mon panier",
-                      style:
-                          TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 20),
-                    Expanded(
-                      child: panier.isEmpty
-                          ? const Center(child: Text("Votre panier est vide."))
-                          : ListView.builder(
-                              itemCount: panier.length,
-                              itemBuilder: (_, index) {
-                                final item = panier[index];
-                                return ListTile(
-                                  leading: const Icon(Icons.shopping_bag),
-                                  title: Text(item['GA_LIBELLE'] ?? 'Article'),
-                                  subtitle: Text(
-                                      "Qté: ${item['GL_QTEFACT']} - Taille: ${item['dim1Libelle']} - Couleur: ${item['dim2Libelle']}"),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        "€${(item['TotalLigne'] ?? 0.0).toStringAsFixed(2)}",
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete,
-                                            color: Colors.red),
-                                        onPressed: () async {
-                                          await PanierService()
-                                              .supprimerDuPanier(
-                                            codeTiers ?? "GUEST",
-                                            item['GL_ARTICLE'],
-                                            codesdim: item['GL_CODESDIM'],
-                                          );
-                                          Navigator.of(context).pop();
-                                          _showCartSidePanel(); // 🆕 Recharge après suppression
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (panier.isNotEmpty)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text("Total :",
-                                  style: TextStyle(fontSize: 16)),
-                              Text("€${total.toStringAsFixed(2)}",
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      const ValidationCommandeScreen(),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            Future<void> fetchPanier() async {
+              setState(() => isLoading = true);
+              try {
+                lignes = await panierService.getPanier(codeTiers: codeTiers);
+              } catch (e) {
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(SnackBar(content: Text("Erreur: $e")));
+              }
+              setState(() => isLoading = false);
+            }
+
+            void initFetch() {
+              if (!hasFetched) {
+                hasFetched = true;
+                fetchPanier();
+              }
+            }
+
+            Future<void> fetchDepots() async {
+              try {
+                final res = await http.get(
+                    Uri.parse("http://localhost:3000/click-collect/depots"));
+                if (res.statusCode == 200) {
+                  depots = jsonDecode(res.body).cast<Map<String, dynamic>>();
+                  setState(() {});
+                }
+              } catch (e) {
+                print("Erreur dépôts: $e");
+              }
+            }
+
+            Future<void> supprimerArticle(
+                String codeArticle, String codeSDIM) async {
+              try {
+                await panierService.retirerDuPanier(
+                  codeTiers: codeTiers,
+                  codeArticle: codeArticle,
+                  codesdim: codeSDIM,
+                );
+                setState(() {
+                  lignes.removeWhere((l) =>
+                      l['GL_ARTICLE'] == codeArticle &&
+                      l['GL_CODESDIM'] == codeSDIM);
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Article supprimé.")));
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Erreur suppression: $e")));
+              }
+            }
+
+            Future<void> validerCommande() async {
+              final token = await StorageService.getToken();
+              if (JwtDecoder.isExpired(token!)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Session expirée.")),
+                );
+                return;
+              }
+
+              final decoded = JwtDecoder.decode(token);
+              final codeTiers = decoded['codeTiers'];
+              if (codeTiers == null) return;
+
+              if (isRetrait && selectedDepot == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Choisissez un dépôt.")));
+                return;
+              }
+
+              try {
+                final res = await http.get(
+                  Uri.parse("http://localhost:3000/orders/next-numero"),
+                  headers: {"Authorization": "Bearer $token"},
+                );
+
+                if (res.statusCode != 200) throw Exception("Erreur numéro");
+
+                final numero = jsonDecode(res.body)['nextNumero'];
+                final now = DateTime.now().toUtc().toIso8601String();
+
+                final body = {
+                  "GP_NATUREPIECEG": "CC",
+                  "GP_SOUCHE": "04",
+                  "GP_NUMERO": numero,
+                  "GP_INDICEG": 1,
+                  "GP_DATECREATION": now,
+                  "GP_LIBRETIERS1": isRetrait ? "S01" : "LOC",
+                  "GP_DEPOT": isRetrait ? selectedDepot : null,
+                };
+
+                final postRes = await http.post(
+                  Uri.parse("http://localhost:3000/orders"),
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer $token"
+                  },
+                  body: jsonEncode(body),
+                );
+
+                if (postRes.statusCode == 201) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text("✅ Commande enregistrée avec succès.")),
+                  );
+                  setState(() => lignes.clear());
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Erreur: ${postRes.body}")));
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(SnackBar(content: Text("Erreur: $e")));
+              }
+            }
+
+            initFetch();
+
+            double total = lignes.fold(
+                0.0, (sum, item) => sum + (item['TotalLigne'] ?? 0.0));
+
+            return Align(
+              alignment: Alignment.centerRight,
+              child: FractionallySizedBox(
+                widthFactor: 0.5,
+                child: Material(
+                  color: Colors.white,
+                  elevation: 20,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    bottomLeft: Radius.circular(20),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("Mon panier",
+                            style: TextStyle(
+                                fontSize: 24, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 20),
+                        Expanded(
+                          child: isLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : lignes.isEmpty
+                                  ? const Center(
+                                      child: Text("Votre panier est vide."))
+                                  : ListView.builder(
+                                      itemCount: lignes.length,
+                                      itemBuilder: (_, index) {
+                                        final l = lignes[index];
+                                        return ListTile(
+                                          leading:
+                                              const Icon(Icons.shopping_bag),
+                                          title: Text(
+                                              l['GA_LIBELLE'] ?? 'Article'),
+                                          subtitle: Text(
+                                              "Qté: ${l['GL_QTEFACT']} - Taille: ${l['dim1Libelle'] ?? '-'} - Couleur: ${l['dim2Libelle'] ?? '-'}"),
+                                          trailing: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                  "€${(l['TotalLigne'] ?? 0.0).toStringAsFixed(2)}"),
+                                              IconButton(
+                                                icon: const Icon(Icons.delete,
+                                                    color: Colors.red),
+                                                onPressed: () =>
+                                                    supprimerArticle(
+                                                        l['GL_ARTICLE'],
+                                                        l['GL_CODESDIM']),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                        ),
+                        SwitchListTile(
+                          title: const Text("Retrait en dépôt"),
+                          value: isRetrait,
+                          onChanged: (val) {
+                            setState(() {
+                              isRetrait = val;
+                              if (val) {
+                                selectedDepot = null;
+                                fetchDepots();
+                              }
+                            });
+                          },
+                        ),
+                        if (isRetrait)
+                          depots.isNotEmpty
+                              ? DropdownButtonFormField<String>(
+                                  value: depots.any(
+                                          (d) => d['code'] == selectedDepot)
+                                      ? selectedDepot
+                                      : null,
+                                  decoration: const InputDecoration(
+                                      labelText: "Choisissez un dépôt"),
+                                  items: depots.map((depot) {
+                                    return DropdownMenuItem<String>(
+                                      value: depot['code'],
+                                      child: Text(depot['libelle'] ?? 'Dépôt'),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) =>
+                                      setState(() => selectedDepot = val),
+                                )
+                              : const Padding(
+                                  padding: EdgeInsets.only(top: 8),
+                                  child: Text("Aucun dépôt disponible."),
                                 ),
-                              );
-                            },
-                            icon: const Icon(Icons.check),
-                            label: const Text("Valider la commande"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF3B5BDB),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text("Total :",
+                                style: TextStyle(fontSize: 16)),
+                            Text("€${total.toStringAsFixed(2)}",
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ValidationCommandeScreen(),
                               ),
-                            ),
+                            );
+                          },
+                          icon: const Icon(Icons.check),
+                          label: const Text("Valider la commande"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3B5BDB),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
-                        ],
-                      ),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text("Fermer"),
-                      ),
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text("Fermer"),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -462,7 +613,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.shopping_cart),
-                          onPressed: _showCartSidePanel,
+                          onPressed: () => _showCartSidePanelClient(context),
                         ),
                         IconButton(
                           icon: const Icon(Icons.person),
@@ -495,8 +646,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           onPressed: () async {
                             await StorageService.clearToken();
                             if (!mounted) return;
-                            Navigator.of(context)
-                                .pushNamedAndRemoveUntil('/', (route) => false);
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const WelcomeScreen()),
+                              (route) => false,
+                            );
                           },
                           child: const Text("Se déconnecter"),
                         )
@@ -558,8 +713,22 @@ class _HomeScreenState extends State<HomeScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    ArticleDetailScreen(article: article),
+                                builder: (_) {
+                                  final codeArticle = article['GA_CODEARTICLE'];
+
+                                  final variants = articles
+                                      .where((a) =>
+                                          a['GA_CODEARTICLE'] == codeArticle)
+                                      .cast<Map<String, dynamic>>()
+                                      .toList();
+
+                                  return ArticleDetailScreen(
+                                    article: article,
+                                    allVariants:
+                                        List<Map<String, dynamic>>.from(
+                                            article['variantes'] ?? []),
+                                  );
+                                },
                               ),
                             );
                           },
@@ -574,12 +743,23 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 AspectRatio(
                                   aspectRatio: 1,
-                                  child: Image.network(
-                                    article['GA_IMAGE_URL'] ?? '',
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
-                                        Image.asset(image, fit: BoxFit.cover),
-                                  ),
+                                  child: article['GA_IMAGE_BASE64'] != null
+                                      ? Image.memory(
+                                          base64Decode(
+                                              article['GA_IMAGE_BASE64']
+                                                  .split(',')
+                                                  .last),
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) =>
+                                              Image.asset(
+                                            image,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        )
+                                      : Image.asset(
+                                          image,
+                                          fit: BoxFit.cover,
+                                        ),
                                 ),
                                 Padding(
                                   padding: const EdgeInsets.symmetric(

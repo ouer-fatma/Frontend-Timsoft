@@ -16,26 +16,14 @@
   <link rel="manifest" href="manifest.json">
 
   <title>project</title>
+  <!-- Firebase core & messaging pour le Web -->
+<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-messaging-compat.js"></script>
+
 </head>
 <body>
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-
-  <!-- Rendered button -->
-  <div id="g_id_onload"
-       data-client_id="755445236888-d3g1dmodl74krp8j59c507i2r2gi11gq.apps.googleusercontent.com"
-       data-callback="handleCredentialResponse"
-       data-auto_prompt="false">
-  </div>
-
-  <div class="g_id_signin"
-       data-type="standard"
-       data-size="large"
-       data-theme="outline"
-       data-text="sign_in_with"
-       data-shape="rectangular"
-       data-logo_alignment="left">
-  </div>
 
   <script>
     function handleCredentialResponse(response) {
